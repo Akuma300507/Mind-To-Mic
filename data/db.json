@@ -1,0 +1,458 @@
+{
+  "participants": [
+    {
+      "id": "p-101",
+      "participantNumber": "M2M-001",
+      "name": "Aarav Sharma",
+      "college": "Delhi Technological University",
+      "department": "Computer Science",
+      "status": "active",
+      "round1Status": "completed_early",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+91 98765 43210"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    },
+    {
+      "id": "p-102",
+      "participantNumber": "M2M-002",
+      "name": "Maya Chen",
+      "college": "Metropolitan Institute of Technology",
+      "department": "Literature & Communications",
+      "status": "active",
+      "round1Status": "completed_early",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+1 415 555 0192"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    },
+    {
+      "id": "p-103",
+      "participantNumber": "M2M-003",
+      "name": "Lucas Dupont",
+      "college": "Sorbonne University",
+      "department": "Philosophy & Ethics",
+      "status": "active",
+      "round1Status": "pending",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+33 6 12 34 56 78"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    },
+    {
+      "id": "p-104",
+      "participantNumber": "M2M-004",
+      "name": "Priya Patel",
+      "college": "National Law School",
+      "department": "Public Policy",
+      "status": "active",
+      "round1Status": "pending",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+91 91234 56789"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    },
+    {
+      "id": "p-105",
+      "participantNumber": "M2M-005",
+      "name": "David Kim",
+      "college": "Seoul National University",
+      "department": "Economics",
+      "status": "active",
+      "round1Status": "pending",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+82 10 9876 5432"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    },
+    {
+      "id": "p-106",
+      "participantNumber": "M2M-006",
+      "name": "Zara Al-Mansoor",
+      "college": "King Fahd University",
+      "department": "Media Studies",
+      "status": "active",
+      "round1Status": "pending",
+      "round2Status": "pending",
+      "round3Status": "pending",
+      "customData": {
+        "phone": "+971 50 123 4567"
+      },
+      "createdAt": "2026-09-07T16:49:23.389Z",
+      "updatedAt": "2026-09-07T16:49:23.389Z"
+    }
+  ],
+  "customFields": [
+    {
+      "id": "f_phone",
+      "name": "Phone Number",
+      "key": "phone",
+      "type": "text",
+      "required": false,
+      "isSystem": false
+    }
+  ],
+  "topics": [
+    {
+      "id": "top-1",
+      "topic": "Is AI creative or merely a parrot of human culture?",
+      "category": "Technology",
+      "status": "available"
+    },
+    {
+      "id": "top-2",
+      "topic": "The Power of Silence in an Age of Constant Noise",
+      "category": "Philosophy",
+      "status": "available"
+    },
+    {
+      "id": "top-3",
+      "topic": "Should college degrees remain the benchmark for intellect?",
+      "category": "Education",
+      "status": "available"
+    },
+    {
+      "id": "top-4",
+      "topic": "Digital Privacy: A Universal Right or a Modern Myth?",
+      "category": "Society",
+      "status": "available"
+    },
+    {
+      "id": "top-5",
+      "topic": "Can empathy be taught or is it hardwired?",
+      "category": "Psychology",
+      "status": "available"
+    },
+    {
+      "id": "top-6",
+      "topic": "The Myth of the Overnight Success Story",
+      "category": "Mindset",
+      "status": "available"
+    },
+    {
+      "id": "top-7",
+      "topic": "Why Failure is the Highest Form of Curriculum",
+      "category": "Mindset",
+      "status": "available"
+    },
+    {
+      "id": "top-8",
+      "topic": "Are algorithms polarizing human empathy?",
+      "category": "Technology",
+      "status": "available"
+    },
+    {
+      "id": "top-9",
+      "topic": "The Future of Clean Energy: Science vs Politics",
+      "category": "Environment",
+      "status": "available"
+    },
+    {
+      "id": "top-10",
+      "topic": "Is Cancel Culture Accountability or Retribution?",
+      "category": "Culture",
+      "status": "available"
+    },
+    {
+      "id": "top-11",
+      "topic": "The Vanishing Art of Deep Focused Work",
+      "category": "Productivity",
+      "status": "available"
+    },
+    {
+      "id": "top-12",
+      "topic": "Does Wealth Obligate Philanthropy?",
+      "category": "Ethics",
+      "status": "available"
+    },
+    {
+      "id": "top-13",
+      "topic": "Space Colonization vs Fixing Earth: Where should billions go?",
+      "category": "Future",
+      "status": "available"
+    },
+    {
+      "id": "top-14",
+      "topic": "The Illusion of Infinite Free Time",
+      "category": "Time",
+      "status": "available"
+    },
+    {
+      "id": "top-15",
+      "topic": "Is Social Media Making Us lonelier together?",
+      "category": "Society",
+      "status": "available"
+    },
+    {
+      "id": "top-16",
+      "topic": "Leadership in Crisis: Decisiveness vs Compassion",
+      "category": "Leadership",
+      "status": "available"
+    },
+    {
+      "id": "top-17",
+      "topic": "The Paradox of Choice: Does more freedom bring happiness?",
+      "category": "Philosophy",
+      "status": "available"
+    },
+    {
+      "id": "top-18",
+      "topic": "Virtual Reality vs Physical Reality: The new divide",
+      "category": "Technology",
+      "status": "available"
+    },
+    {
+      "id": "top-19",
+      "topic": "Who is responsible for climate action: Individuals or Corporations?",
+      "category": "Environment",
+      "status": "available"
+    },
+    {
+      "id": "top-20",
+      "topic": "The Price of Perfectionism in Youth",
+      "category": "Psychology",
+      "status": "available"
+    },
+    {
+      "id": "top-21",
+      "topic": "Can Humor be used as an Instrument of Truth?",
+      "category": "Culture",
+      "status": "available"
+    },
+    {
+      "id": "top-22",
+      "topic": "Why We Need More Generalists, Not Just Specialists",
+      "category": "Career",
+      "status": "available"
+    },
+    {
+      "id": "top-23",
+      "topic": "The Ethics of Human Genetic Engineering",
+      "category": "Bioethics",
+      "status": "available"
+    },
+    {
+      "id": "top-24",
+      "topic": "The Art of Disagreeing Without Becoming Enemies",
+      "category": "Communication",
+      "status": "available"
+    },
+    {
+      "id": "top-25",
+      "topic": "Will Automation Create a Leisure Society or Economic Despair?",
+      "category": "Economics",
+      "status": "available"
+    }
+  ],
+  "images": [
+    {
+      "id": "img-1",
+      "name": "A Solitary Mic on a Dark Stage",
+      "url": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    },
+    {
+      "id": "img-2",
+      "name": "The Clockwork Gears of Thought",
+      "url": "https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    },
+    {
+      "id": "img-3",
+      "name": "Neon Labyrinth of the City",
+      "url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    },
+    {
+      "id": "img-4",
+      "name": "Human Hand Meeting Robotic Fingers",
+      "url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    },
+    {
+      "id": "img-5",
+      "name": "Roots of an Ancient Tree in Stone",
+      "url": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
+      "status": "used",
+      "usedByParticipantId": "p-102",
+      "usedByParticipantName": "Maya Chen",
+      "usedAt": "2026-09-07T17:14:52.290Z"
+    },
+    {
+      "id": "img-6",
+      "name": "Astronaut Staring into the Cosmic Abyss",
+      "url": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+      "status": "used",
+      "usedByParticipantId": "p-101",
+      "usedByParticipantName": "Aarav Sharma",
+      "usedAt": "2026-09-07T17:21:16.405Z"
+    },
+    {
+      "id": "img-7",
+      "name": "A Single Lighthouse in a Stormy Ocean",
+      "url": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    },
+    {
+      "id": "img-8",
+      "name": "Chess King Toppled in Moonlight",
+      "url": "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=1200&q=80",
+      "status": "available"
+    }
+  ],
+  "round1Results": [
+    {
+      "participantId": "p-102",
+      "participantName": "Maya Chen",
+      "college": "Metropolitan Institute of Technology",
+      "imageId": "img-5",
+      "imageName": "Roots of an Ancient Tree in Stone",
+      "imageUrl": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
+      "prepDurationSeconds": 30,
+      "speechDurationSeconds": 0,
+      "targetSpeechDurationSeconds": 120,
+      "startTime": "2026-09-07T17:14:53.828Z",
+      "endTime": "2026-09-07T17:14:56.467Z",
+      "status": "completed_early",
+      "id": "r1-1788801292290"
+    },
+    {
+      "participantId": "p-101",
+      "participantName": "Aarav Sharma",
+      "college": "Delhi Technological University",
+      "imageId": "img-6",
+      "imageName": "Astronaut Staring into the Cosmic Abyss",
+      "imageUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+      "prepDurationSeconds": 30,
+      "speechDurationSeconds": 10,
+      "targetSpeechDurationSeconds": 120,
+      "startTime": "2026-09-07T17:20:40.263Z",
+      "endTime": "2026-09-07T17:21:20.577Z",
+      "status": "completed_early",
+      "id": "r1-1788801676405"
+    }
+  ],
+  "round2Results": [],
+  "round3Results": [],
+  "settings": {
+    "event": {
+      "name": "MIND TO MIC",
+      "tagline": "THINK. SPEAK. EXPRESS.",
+      "logoText": "MIND TO MIC"
+    },
+    "round1": {
+      "prepTimeSeconds": 30,
+      "speechTimeSeconds": 120,
+      "allowImageReuse": false,
+      "buzzerEnabled": true
+    },
+    "round2": {
+      "activeWheelTopicCount": 20,
+      "speechTimeSeconds": 120,
+      "topicReuseAllowed": false,
+      "buzzerEnabled": true
+    },
+    "round3": {
+      "speechTimeSeconds": 120,
+      "buzzerEnabled": true
+    },
+    "buzzer": {
+      "laptopBuzzer": true,
+      "mobileBuzzer": true,
+      "volume": 90,
+      "sound": "horn",
+      "autoBuzzerOnZero": true
+    },
+    "stations": [
+      {
+        "id": "main",
+        "name": "Main Auditorium Stage",
+        "location": "Auditorium"
+      },
+      {
+        "id": "station-1",
+        "name": "Station Alpha",
+        "location": "Room 101"
+      },
+      {
+        "id": "station-2",
+        "name": "Station Beta",
+        "location": "Room 102"
+      }
+    ]
+  },
+  "history": [
+    {
+      "id": "log-1788801676405-8qmze",
+      "timestamp": "2026-09-07T17:21:16.405Z",
+      "action": "Round 1 Completed",
+      "round": "Round 1",
+      "participantId": "p-101",
+      "participantName": "Aarav Sharma",
+      "details": "Participant Aarav Sharma completed Round 1 speech (10s)"
+    },
+    {
+      "id": "log-1788801292290-bnh9q",
+      "timestamp": "2026-09-07T17:14:52.291Z",
+      "action": "Round 1 Completed",
+      "round": "Round 1",
+      "participantId": "p-102",
+      "participantName": "Maya Chen",
+      "details": "Participant Maya Chen completed Round 1 speech (0s)"
+    },
+    {
+      "id": "log-1788801054883-flxkz",
+      "timestamp": "2026-09-07T17:10:54.883Z",
+      "action": "Buzzer Triggered",
+      "round": "General",
+      "details": "Navbar Quick Buzzer sounded by organizer (General) for Aarav Sharma"
+    },
+    {
+      "id": "log-1788801053958-xryfq",
+      "timestamp": "2026-09-07T17:10:53.958Z",
+      "action": "Buzzer Triggered",
+      "round": "General",
+      "details": "Navbar Quick Buzzer sounded by organizer (General) for Aarav Sharma"
+    },
+    {
+      "id": "log-1",
+      "timestamp": "2026-09-07T16:49:23.389Z",
+      "action": "Event Initialized",
+      "round": "General",
+      "details": "Mind to Mic competition platform booted with initial participant and topic roster."
+    }
+  ],
+  "liveSync": {
+    "currentRound": 1,
+    "activeParticipantId": "p-101",
+    "timerMode": "idle",
+    "timerRemainingSeconds": 120,
+    "timerTotalSeconds": 120,
+    "isTimerRunning": false,
+    "timerStartedAt": null,
+    "timerEndsAt": null,
+    "locationId": "main",
+    "activeItem": {
+      "type": "image",
+      "title": "Astronaut Staring into the Cosmic Abyss",
+      "mediaUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
+    },
+    "wheelSpin": null,
+    "buzzerTimestamp": 0
+  }
+}
