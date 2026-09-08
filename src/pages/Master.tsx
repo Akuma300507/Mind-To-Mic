@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   ShieldAlert,
   Radio,
@@ -20,6 +20,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { computeStationTimer } from '../lib/timerUtils';
 import type { StationState, StationStatus } from '../types';
 
 export const Master: React.FC = () => {
@@ -37,6 +38,15 @@ export const Master: React.FC = () => {
   } = useApp();
 
   const [selectedRoundFilter, setSelectedRoundFilter] = useState<'all' | '1' | '2' | '3'>('all');
+
+  // Live millisecond reference synchronized with projector & backend
+  const [nowMs, setNowMs] = useState<number>(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 100);
+    return () => clearInterval(interval);
+  }, []);
 
   // Format seconds to MM:SS
   const formatTime = (secs: number) => {
@@ -195,11 +205,13 @@ export const Master: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filteredStations.map((station) => {
           const isOnline = station.claimedByDeviceId && Date.now() - (station.lastHeartbeat || 0) < 25000;
-          const timer = station.timer;
-          const isRunning = timer?.isRunning || false;
-          const remainingSecs = timer?.remainingSeconds || 0;
-          const totalSecs = timer?.totalSeconds || 120;
-          const progressPct = totalSecs > 0 ? Math.min(100, Math.max(0, ((totalSecs - remainingSecs) / totalSecs) * 100)) : 0;
+          const computedTimer = computeStationTimer(station, nowMs);
+          const isRunning = computedTimer.isRunning;
+          const remainingSecs = computedTimer.remainingSeconds;
+          const totalSecs = computedTimer.durationSeconds;
+          const progressPct = computedTimer.progressPercent;
+          const isOvertime = computedTimer.isOvertime;
+          const timerPhase = computedTimer.phase;
 
           return (
             <div
@@ -360,32 +372,68 @@ export const Master: React.FC = () => {
               <div className="bg-gradient-to-b from-slate-950 to-slate-900 p-4 rounded-2xl border border-purple-900/30 text-center space-y-3">
                 <div className="flex items-center justify-between text-xs px-2">
                   <span className="text-purple-300 font-bold uppercase tracking-wider text-[10px]">
-                    {timer?.phase === 'prep' ? 'Preparation Timer' : 'Speech Timer'}
+                    {isOvertime
+                      ? 'Speech Overtime'
+                      : timerPhase === 'prep'
+                      ? 'Preparation Timer'
+                      : 'Speech Timer'}
                   </span>
                   <span
                     className={`font-mono font-bold text-xs ${
-                      isRunning ? 'text-emerald-400 animate-pulse' : 'text-slate-500'
+                      isOvertime
+                        ? 'text-rose-400 animate-pulse'
+                        : isRunning
+                        ? 'text-emerald-400 animate-pulse'
+                        : 'text-slate-500'
                     }`}
                   >
-                    {isRunning ? 'RUNNING' : 'PAUSED/STOPPED'}
+                    {isOvertime ? 'OVERTIME' : isRunning ? 'RUNNING' : 'PAUSED/STOPPED'}
                   </span>
                 </div>
 
-                <div className="text-4xl md:text-5xl font-black font-mono tracking-tight text-white select-none">
-                  {formatTime(remainingSecs)}
+                <div
+                  className={`text-4xl md:text-5xl font-black font-mono tracking-tight select-none ${
+                    isOvertime
+                      ? 'text-rose-400 drop-shadow-[0_0_20px_rgba(244,63,94,0.6)]'
+                      : remainingSecs <= 10 && remainingSecs > 0 && isRunning
+                      ? 'text-amber-400 animate-pulse'
+                      : 'text-white'
+                  }`}
+                >
+                  {isOvertime ? computedTimer.formattedOvertime : computedTimer.formattedCountdown}
                 </div>
 
                 {/* Progress Bar */}
                 <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      remainingSecs <= 10 && remainingSecs > 0
-                        ? 'bg-rose-500 animate-pulse'
+                      isOvertime
+                        ? 'bg-rose-500'
+                        : remainingSecs <= 10 && remainingSecs > 0
+                        ? 'bg-amber-500 animate-pulse'
                         : 'bg-gradient-to-r from-purple-500 to-emerald-500'
                     }`}
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
+
+                {/* Quick Skip Prep to Speech Button if station is in prep */}
+                {timerPhase === 'prep' && (
+                  <button
+                    onClick={() =>
+                      sendStationTimerAction(station.id, {
+                        action: 'transition_to_speech',
+                        phase: 'speech',
+                        totalSeconds: 120,
+                        remainingSeconds: 120,
+                      })
+                    }
+                    className="w-full py-1.5 px-3 rounded-xl bg-purple-600/90 hover:bg-purple-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-md shadow-purple-950 border border-purple-400/40"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>Skip Prep ➔ Start Speaking Timer</span>
+                  </button>
+                )}
 
                 {/* Master Quick Timer Controls for Station */}
                 <div className="grid grid-cols-4 gap-2 pt-1">
@@ -393,7 +441,7 @@ export const Master: React.FC = () => {
                     onClick={() =>
                       sendStationTimerAction(station.id, {
                         action: isRunning ? 'pause' : 'start',
-                        phase: timer?.phase || 'speech',
+                        phase: timerPhase === 'idle' ? (station.currentRound === 1 ? 'prep' : 'speech') : timerPhase,
                         remainingSeconds: remainingSecs,
                         totalSeconds: totalSecs,
                       })
@@ -412,7 +460,7 @@ export const Master: React.FC = () => {
                     onClick={() =>
                       sendStationTimerAction(station.id, {
                         action: 'stop',
-                        phase: timer?.phase || 'speech',
+                        phase: timerPhase,
                         remainingSeconds: 0,
                       })
                     }
@@ -427,9 +475,9 @@ export const Master: React.FC = () => {
                     onClick={() =>
                       sendStationTimerAction(station.id, {
                         action: 'reset',
-                        phase: timer?.phase || 'speech',
-                        totalSeconds: timer?.phase === 'prep' ? 30 : 120,
-                        remainingSeconds: timer?.phase === 'prep' ? 30 : 120,
+                        phase: 'idle',
+                        totalSeconds: totalSecs,
+                        remainingSeconds: totalSecs,
                       })
                     }
                     className="py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors"

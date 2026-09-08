@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Image as ImageIcon,
   Plus,
@@ -8,19 +8,46 @@ import {
   RotateCcw,
   ExternalLink,
   Sparkles,
+  Upload,
+  FolderOpen,
+  FileImage,
+  X,
+  Loader2,
+  Check,
+  Laptop,
+  Globe,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { EventImage } from '../types';
 
+interface FileUploadItem {
+  id: string;
+  file: File;
+  name: string;
+  preview: string;
+  base64: string;
+  size: string;
+}
+
 export const ImagesManager: React.FC = () => {
-  const { db, addImage, updateImage, deleteImage, resetImagesStatus } = useApp();
+  const { db, addImage, uploadImages, updateImage, deleteImage, resetImagesStatus } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'available' | 'used'>('all');
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addMode, setAddMode] = useState<'laptop' | 'url'>('laptop');
+
+  // URL mode state
   const [imageName, setImageName] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+
+  // Laptop upload state
+  const [selectedFiles, setSelectedFiles] = useState<FileUploadItem[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const images = db?.images || [];
 
@@ -32,14 +59,124 @@ export const ImagesManager: React.FC = () => {
     });
   }, [images, searchTerm, statusFilter]);
 
-  const handleSaveImage = async (e: React.FormEvent) => {
+  // Clean filename to readable title
+  const cleanFileName = (filename: string): string => {
+    const withoutExt = filename.replace(/\.[^/.]+$/, '');
+    return withoutExt
+      .replace(/[-_]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const readFileAsBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFilesSelected = async (filesList: FileList | null) => {
+    if (!filesList || filesList.length === 0) return;
+    setUploadError(null);
+
+    const newItems: FileUploadItem[] = [];
+    for (let i = 0; i < filesList.length; i++) {
+      const file = filesList[i];
+      if (!file.type.startsWith('image/')) {
+        continue;
+      }
+      try {
+        const base64 = await readFileAsBase64(file);
+        newItems.push({
+          id: `f_${Date.now()}_${Math.random().toString(36).substring(2, 6)}_${i}`,
+          file,
+          name: cleanFileName(file.name),
+          preview: base64,
+          base64,
+          size: formatFileSize(file.size),
+        });
+      } catch (e) {
+        console.error('Error reading file:', e);
+      }
+    }
+
+    if (newItems.length === 0) {
+      setUploadError('Please select valid image files (JPG, PNG, WEBP, GIF).');
+      return;
+    }
+
+    setSelectedFiles((prev) => [...prev, ...newItems]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveSelectedFile = (id: string) => {
+    setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
+  };
+
+  const handleUpdateSelectedName = (id: string, newName: string) => {
+    setSelectedFiles((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
+    );
+  };
+
+  // Submit Laptop Uploaded Images
+  const handleUploadFromLaptop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedFiles.length === 0) {
+      setUploadError('Please choose at least one image file from your laptop.');
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadError(null);
+
+    try {
+      const payload = {
+        images: selectedFiles.map((item) => ({
+          name: item.name.trim() || 'Untitled Image',
+          base64: item.base64,
+        })),
+      };
+
+      await uploadImages(payload);
+      setSelectedFiles([]);
+      setShowAddModal(false);
+    } catch (err: any) {
+      setUploadError(err.message || 'Failed to upload images. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Submit Web URL Image
+  const handleSaveUrlImage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!imageName.trim() || !imageUrl.trim()) return;
 
-    await addImage(imageName.trim(), imageUrl.trim());
-    setImageName('');
-    setImageUrl('');
-    setShowAddModal(false);
+    setIsUploading(true);
+    try {
+      await addImage(imageName.trim(), imageUrl.trim());
+      setImageName('');
+      setImageUrl('');
+      setShowAddModal(false);
+    } catch (err: any) {
+      setUploadError(err.message || 'Failed to add image URL.');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleToggleStatus = async (img: EventImage) => {
@@ -61,7 +198,7 @@ export const ImagesManager: React.FC = () => {
             Image Prompt Repository
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Visual prompts presented to contestants in Round 1 (Image to Speech).
+            Visual prompts presented to contestants in Round 1 (Image to Speech). Upload from your laptop or add web links.
           </p>
         </div>
 
@@ -78,12 +215,30 @@ export const ImagesManager: React.FC = () => {
             <span>Reset All Statuses</span>
           </button>
 
+          {/* Primary Upload from Laptop Button */}
           <button
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-950/50"
+            onClick={() => {
+              setAddMode('laptop');
+              setUploadError(null);
+              setShowAddModal(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-950/50"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload from Laptop</span>
+          </button>
+
+          {/* Secondary Add via URL button */}
+          <button
+            onClick={() => {
+              setAddMode('url');
+              setUploadError(null);
+              setShowAddModal(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-semibold shadow-md shadow-purple-950/40"
           >
             <Plus className="w-4 h-4" />
-            <span>Add New Image</span>
+            <span>Add via URL</span>
           </button>
         </div>
       </div>
@@ -92,21 +247,21 @@ export const ImagesManager: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Total Images</div>
+            <div className="text-xs text-slate-400">Total Images in Pool</div>
             <div className="text-2xl font-black text-white font-mono">{total}</div>
           </div>
           <span className="p-2 rounded-xl bg-blue-500/20 text-blue-300 font-bold text-xs">Gallery</span>
         </div>
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Available</div>
+            <div className="text-xs text-slate-400">Available Prompts</div>
             <div className="text-2xl font-black text-emerald-400 font-mono">{available}</div>
           </div>
           <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-xs">Ready</span>
         </div>
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Used</div>
+            <div className="text-xs text-slate-400">Used in Event</div>
             <div className="text-2xl font-black text-rose-400 font-mono">{used}</div>
           </div>
           <span className="p-2 rounded-xl bg-rose-500/20 text-rose-300 font-bold text-xs">Used</span>
@@ -119,7 +274,7 @@ export const ImagesManager: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search image title..."
+            placeholder="Search image prompt title..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
@@ -133,127 +288,368 @@ export const ImagesManager: React.FC = () => {
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="bg-slate-950 border border-slate-800 text-slate-200 px-3 py-1.5 rounded-lg focus:outline-none"
           >
-            <option value="all">All Images</option>
-            <option value="available">Available Only</option>
-            <option value="used">Used Only</option>
+            <option value="all">All Images ({total})</option>
+            <option value="available">Available Only ({available})</option>
+            <option value="used">Used Only ({used})</option>
           </select>
         </div>
       </div>
 
       {/* Images Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-        {filteredImages.map((img) => (
-          <div
-            key={img.id}
-            className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-purple-500/50 transition-all group"
-          >
-            <div className="relative aspect-video bg-slate-950 overflow-hidden">
-              <img
-                src={img.url}
-                alt={img.name}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                referrerPolicy="no-referrer"
-              />
-              <span
-                className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                  img.status === 'available'
-                    ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700'
-                    : 'bg-rose-950/90 text-rose-300 border border-rose-700'
-                }`}
-              >
-                {img.status}
-              </span>
-            </div>
-
-            <div className="p-4 space-y-3">
-              <h4 className="font-bold text-white text-sm font-['Outfit'] truncate">{img.name}</h4>
-
-              <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
-                <button
-                  onClick={() => handleToggleStatus(img)}
-                  className="text-purple-400 hover:text-purple-300 font-semibold"
-                >
-                  Mark as {img.status === 'available' ? 'Used' : 'Available'}
-                </button>
-
-                <button
-                  onClick={() => {
-                    if (confirm(`Delete image "${img.name}"?`)) deleteImage(img.id);
-                  }}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
-                  title="Delete image"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+      {filteredImages.length === 0 ? (
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-12 text-center space-y-4">
+          <ImageIcon className="w-12 h-12 text-slate-600 mx-auto" />
+          <div className="space-y-1">
+            <h3 className="text-lg font-bold text-white">No Images Found</h3>
+            <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              {searchTerm || statusFilter !== 'all'
+                ? 'Try adjusting your search query or status filter.'
+                : 'Upload images from your laptop or provide image URLs to build the Round 1 prompt library.'}
+            </p>
           </div>
-        ))}
-      </div>
-
-      {/* Add Image Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-purple-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-4 font-['Outfit']">Add New Image Prompt</h3>
-            <form onSubmit={handleSaveImage} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Image Title / Theme <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={imageName}
-                  onChange={(e) => setImageName(e.target.value)}
-                  placeholder="e.g. Solitary Climber on Glacier Peak"
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">
-                  Image URL (High Resolution) <span className="text-rose-400">*</span>
-                </label>
-                <input
-                  type="url"
-                  required
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              {imageUrl && (
-                <div className="aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+          <button
+            onClick={() => {
+              setAddMode('laptop');
+              setShowAddModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
+          >
+            <Upload className="w-4 h-4" />
+            <span>Upload Image from Laptop</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {filteredImages.map((img) => {
+            const isLocalUpload = img.url.startsWith('/uploads/');
+            return (
+              <div
+                key={img.id}
+                className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-purple-500/50 transition-all group"
+              >
+                <div className="relative aspect-video bg-slate-950 overflow-hidden">
                   <img
-                    src={imageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
+                    src={img.url}
+                    alt={img.name}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                    referrerPolicy="no-referrer"
                     onError={(e) => {
-                      (e.target as any).src = 'https://placehold.co/600x400?text=Invalid+Image+URL';
+                      (e.target as any).src = 'https://placehold.co/600x400?text=Image+Unavailable';
                     }}
                   />
+                  <div className="absolute top-2 left-2 flex items-center gap-1.5">
+                    {isLocalUpload ? (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-950/90 text-blue-300 border border-blue-700 flex items-center gap-1 backdrop-blur-sm">
+                        <Laptop className="w-2.5 h-2.5" />
+                        Laptop
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-950/90 text-purple-300 border border-purple-700 flex items-center gap-1 backdrop-blur-sm">
+                        <Globe className="w-2.5 h-2.5" />
+                        Web
+                      </span>
+                    )}
+                  </div>
+                  <span
+                    className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider backdrop-blur-sm ${
+                      img.status === 'available'
+                        ? 'bg-emerald-950/90 text-emerald-300 border border-emerald-700'
+                        : 'bg-rose-950/90 text-rose-300 border border-rose-700'
+                    }`}
+                  >
+                    {img.status}
+                  </span>
                 </div>
-              )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold"
-                >
-                  Add Image
-                </button>
+                <div className="p-4 space-y-3">
+                  <h4 className="font-bold text-white text-sm font-['Outfit'] truncate" title={img.name}>
+                    {img.name}
+                  </h4>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
+                    <button
+                      onClick={() => handleToggleStatus(img)}
+                      className="text-purple-400 hover:text-purple-300 font-semibold text-[11px]"
+                    >
+                      Mark as {img.status === 'available' ? 'Used' : 'Available'}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete image prompt "${img.name}"?`)) deleteImage(img.id);
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
+                      title="Delete image"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
               </div>
-            </form>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Add / Upload Image Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-purple-500/30 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-lg font-bold text-white font-['Outfit'] flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-blue-400" />
+                Add Image Prompts
+              </h3>
+              <button
+                onClick={() => {
+                  setShowAddModal(false);
+                  setSelectedFiles([]);
+                  setUploadError(null);
+                }}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mode Switch Tabs: Laptop vs Web URL */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-xl border border-slate-800 mt-4 mb-5 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('laptop');
+                  setUploadError(null);
+                }}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${
+                  addMode === 'laptop'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Laptop className="w-4 h-4" />
+                <span>Upload from Laptop</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAddMode('url');
+                  setUploadError(null);
+                }}
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${
+                  addMode === 'url'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Globe className="w-4 h-4" />
+                <span>Add via Web URL</span>
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {uploadError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-300 text-xs font-semibold">
+                {uploadError}
+              </div>
+            )}
+
+            {/* LAPTOP UPLOAD MODE */}
+            {addMode === 'laptop' && (
+              <form onSubmit={handleUploadFromLaptop} className="space-y-4">
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/svg+xml"
+                  onChange={(e) => handleFilesSelected(e.target.files)}
+                  className="hidden"
+                />
+
+                {/* Drag & Drop Area */}
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setIsDragging(false);
+                    handleFilesSelected(e.dataTransfer.files);
+                  }}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2.5 ${
+                    isDragging
+                      ? 'border-blue-400 bg-blue-950/30'
+                      : 'border-slate-700 hover:border-blue-500/60 bg-slate-950/50 hover:bg-slate-950'
+                  }`}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-blue-950/80 border border-blue-800/60 flex items-center justify-center text-blue-400 shadow-md">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-white">
+                      Click to browse your laptop or drag & drop images
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Supports JPG, PNG, WEBP, GIF (select multiple files at once)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Selected Files List & Previews */}
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                    <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
+                      <span>Ready to upload ({selectedFiles.length} images)</span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFiles([])}
+                        className="text-rose-400 hover:underline"
+                      >
+                        Clear All
+                      </button>
+                    </div>
+
+                    {selectedFiles.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950 border border-slate-800"
+                      >
+                        <img
+                          src={item.preview}
+                          alt="preview"
+                          className="w-14 h-10 object-cover rounded-lg border border-slate-800 flex-shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateSelectedName(item.id, e.target.value)}
+                            placeholder="Image Title / Prompt Topic"
+                            className="w-full text-xs font-bold text-white bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
+                          />
+                          <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                            {item.size} • {item.file.name}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSelectedFile(item.id)}
+                          className="p-1 rounded-lg text-slate-500 hover:text-rose-400"
+                          title="Remove this image"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setSelectedFiles([]);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold text-xs hover:bg-slate-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={selectedFiles.length === 0 || isUploading}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shadow-lg shadow-blue-950/60 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4" />
+                        <span>Upload {selectedFiles.length} Image{selectedFiles.length !== 1 ? 's' : ''}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* WEB URL MODE */}
+            {addMode === 'url' && (
+              <form onSubmit={handleSaveUrlImage} className="space-y-4 text-xs">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Image Title / Topic <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={imageName}
+                    onChange={(e) => setImageName(e.target.value)}
+                    placeholder="e.g. Solitary Climber on Glacier Peak"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Image URL (Direct link to image) <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="url"
+                    required
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    placeholder="https://images.unsplash.com/..."
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+
+                {imageUrl && (
+                  <div className="aspect-video rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
+                    <img
+                      src={imageUrl}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as any).src = 'https://placehold.co/600x400?text=Invalid+Image+URL';
+                      }}
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isUploading}
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold disabled:opacity-40"
+                  >
+                    {isUploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <span>Save Web Image</span>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

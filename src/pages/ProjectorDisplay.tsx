@@ -19,6 +19,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { WheelCanvas } from '../components/common/WheelCanvas';
 import { soundEngine } from '../lib/audio';
+import { computeStationTimer, formatTimeMMSS } from '../lib/timerUtils';
 import type { Topic } from '../types';
 
 export const ProjectorDisplay: React.FC = () => {
@@ -99,42 +100,52 @@ export const ProjectorDisplay: React.FC = () => {
     return live?.activeItem;
   }, [currentStationState, currentRound, live?.activeItem]);
 
-  // Real-time Timer Interpolation (station-specific or live)
-  const timerMode = currentStationState ? currentStationState.timerMode : (live?.timerMode || 'idle');
-  const isTimerRunning = currentStationState ? currentStationState.isTimerRunning : (live?.isTimerRunning || false);
-  const timerEndsAt = currentStationState ? currentStationState.timerEndsAt : live?.timerEndsAt;
-  const timerTotalSeconds = currentStationState ? currentStationState.timerTotalSeconds : (live?.timerTotalSeconds || 120);
-  const timerRemaining = currentStationState ? currentStationState.timerRemainingSeconds : (live?.timerRemainingSeconds ?? 120);
-
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(timerRemaining);
-
+  // Real-time Timer Interpolation using shared backend timestamps (zero-drift)
+  const [nowMs, setNowMs] = useState<number>(Date.now());
   useEffect(() => {
-    if (!isTimerRunning || !timerEndsAt) {
-      setRemainingSeconds(timerRemaining);
-      return;
-    }
-
-    const updateRemaining = () => {
-      const now = Date.now();
-      const diff = Math.max(0, Math.ceil((timerEndsAt - now) / 1000));
-      setRemainingSeconds(diff);
-    };
-
-    updateRemaining();
-    const interval = setInterval(updateRemaining, 200);
+    const interval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 100);
     return () => clearInterval(interval);
-  }, [isTimerRunning, timerEndsAt, timerRemaining]);
+  }, []);
+
+  const stationOrLive = currentStationState || live;
+  const computedTimer = useMemo(() => {
+    return computeStationTimer(stationOrLive, nowMs);
+  }, [stationOrLive, nowMs]);
+
+  const timerMode = computedTimer.phase;
+  const isTimerRunning = computedTimer.isRunning;
+  const remainingSeconds = computedTimer.remainingSeconds;
+  const isOvertime = computedTimer.isOvertime;
+  const overtimeSeconds = computedTimer.overtimeSeconds;
+  const progressPercent = computedTimer.progressPercent;
+  const isWarning = remainingSeconds <= 10 && remainingSeconds > 0 && isTimerRunning && !isOvertime;
+  const isTimeUp = isOvertime || timerMode === 'time_up' || computedTimer.status === 'time_up';
 
   // Round 2 Wheel Animation in Projector View
   const [wheelAngle, setWheelAngle] = useState(0);
   const [isProjectorWheelSpinning, setIsProjectorWheelSpinning] = useState(false);
   const [projectorWinningTopic, setProjectorWinningTopic] = useState<Topic | null>(null);
   const [projectorWheelTopics, setProjectorWheelTopics] = useState<Topic[]>([]);
+  const lastSpinStartedAtRef = useRef<number>(0);
+  const spinAnimFrameRef = useRef<number | null>(null);
 
-  // Reset winning topic when participant changes or round changes
+  // Reset winning topic when station resets or active participant changes
   useEffect(() => {
-    setProjectorWinningTopic(null);
+    if (!currentStationState?.selectedTopicId) {
+      setProjectorWinningTopic(null);
+    }
   }, [activeParticipant?.id, currentRound, currentStationState?.selectedTopicId]);
+
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (spinAnimFrameRef.current) {
+        cancelAnimationFrame(spinAnimFrameRef.current);
+      }
+    };
+  }, []);
 
   // Default active topics if no wheelTopics supplied
   const defaultWheelTopics = useMemo(() => {
@@ -153,9 +164,21 @@ export const ProjectorDisplay: React.FC = () => {
   // Watch for wheel spin events (from station or global)
   useEffect(() => {
     const wheelSpin = currentStationState?.wheelSpin || live?.wheelSpin;
-    if (wheelSpin?.isSpinning && !isProjectorWheelSpinning) {
+    if (wheelSpin?.isSpinning) {
+      if (wheelSpin.startedAt && wheelSpin.startedAt === lastSpinStartedAtRef.current) {
+        return;
+      }
+      if (wheelSpin.startedAt) {
+        lastSpinStartedAtRef.current = wheelSpin.startedAt;
+      }
+
       setIsProjectorWheelSpinning(true);
       setProjectorWinningTopic(null);
+
+      if (spinAnimFrameRef.current) {
+        cancelAnimationFrame(spinAnimFrameRef.current);
+        spinAnimFrameRef.current = null;
+      }
 
       // Slices to use: prioritize wheelTopics transmitted directly from the spin event
       let topicsForSpin =
@@ -230,7 +253,7 @@ export const ProjectorDisplay: React.FC = () => {
         }
 
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          spinAnimFrameRef.current = requestAnimationFrame(animate);
         } else {
           setWheelAngle(desiredFinalAngle);
           setIsProjectorWheelSpinning(false);
@@ -244,12 +267,11 @@ export const ProjectorDisplay: React.FC = () => {
         }
       };
 
-      requestAnimationFrame(animate);
+      spinAnimFrameRef.current = requestAnimationFrame(animate);
     }
   }, [
     currentStationState?.wheelSpin,
     live?.wheelSpin,
-    isProjectorWheelSpinning,
     activeTopics,
     defaultWheelTopics,
     wheelAngle,
@@ -271,41 +293,53 @@ export const ProjectorDisplay: React.FC = () => {
 
   // Format MM:SS
   const formatTime = (secs: number) => {
-    const safeSecs = Math.max(0, Math.floor(secs));
-    const m = Math.floor(safeSecs / 60);
-    const s = safeSecs % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return formatTimeMMSS(secs);
   };
 
-  const isWarning = remainingSeconds <= 10 && remainingSeconds > 0 && isTimerRunning;
-  const isTimeUp = timerMode === 'time_up' || (remainingSeconds === 0 && (timerMode === 'speech' || timerMode === 'prep'));
-
-  // Calculate percentage of timer elapsed
-  const progressPercent = Math.min(
-    100,
-    Math.max(0, timerTotalSeconds > 0 ? ((timerTotalSeconds - remainingSeconds) / timerTotalSeconds) * 100 : 0)
+  // Track whether any spin is currently active (locally or on station/liveSync)
+  const isSpinActive = Boolean(
+    isProjectorWheelSpinning ||
+    currentStationState?.status === 'SPINNING' ||
+    currentStationState?.wheelSpin?.isSpinning ||
+    live?.wheelSpin?.isSpinning
   );
 
-  // Current Round 2 topic to display on projector
+  // Current Round 2 topic to display on projector:
+  // Strictly hidden until wheel spin is fully finished!
   const currentRoundTopic = useMemo(() => {
-    if (isProjectorWheelSpinning) return null;
-    if (activeItem?.type === 'topic' && activeItem.title) {
-      return { title: activeItem.title, category: activeItem.category };
-    }
-    if (currentStationState?.selectedTopic) {
-      return {
-        title: currentStationState.selectedTopic.topic,
-        category: currentStationState.selectedTopic.category,
-      };
-    }
+    if (isSpinActive) return null;
     if (projectorWinningTopic) {
       return {
         title: projectorWinningTopic.topic,
         category: projectorWinningTopic.category,
       };
     }
+    if (
+      currentStationState?.selectedTopic &&
+      currentStationState.status !== 'WAITING' &&
+      currentStationState.status !== 'SPINNING'
+    ) {
+      return {
+        title: currentStationState.selectedTopic.topic,
+        category: currentStationState.selectedTopic.category,
+      };
+    }
+    if (
+      activeItem?.type === 'topic' &&
+      activeItem.title &&
+      currentStationState?.status !== 'WAITING' &&
+      currentStationState?.status !== 'SPINNING'
+    ) {
+      return { title: activeItem.title, category: activeItem.category };
+    }
     return null;
-  }, [isProjectorWheelSpinning, activeItem, currentStationState?.selectedTopic, projectorWinningTopic]);
+  }, [
+    isSpinActive,
+    projectorWinningTopic,
+    currentStationState?.selectedTopic,
+    currentStationState?.status,
+    activeItem,
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-6 sm:p-10 relative overflow-hidden select-none font-['Outfit']">
@@ -443,17 +477,25 @@ export const ProjectorDisplay: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-purple-400" />
               <span className="text-xs font-mono font-bold tracking-wider uppercase text-slate-400">
-                {timerMode === 'prep' && 'PREPARATION TIME'}
-                {timerMode === 'speech' && 'SPEAKING TIME'}
-                {timerMode === 'stopped' && 'TIMER PAUSED'}
-                {timerMode === 'time_up' && "TIME'S UP"}
-                {timerMode === 'idle' && 'STAGE TIMER'}
+                {isOvertime
+                  ? 'OVERTIME (LIMIT REACHED)'
+                  : timerMode === 'prep'
+                  ? 'PREPARATION TIME'
+                  : timerMode === 'speech'
+                  ? 'SPEAKING TIME'
+                  : timerMode === 'stopped'
+                  ? 'TIMER PAUSED / STOPPED'
+                  : timerMode === 'time_up'
+                  ? "TIME'S UP"
+                  : 'STAGE TIMER'}
               </span>
             </div>
 
             <span
               className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
-                timerMode === 'speech'
+                isOvertime
+                  ? 'bg-rose-950 text-rose-300 border-rose-600 animate-pulse'
+                  : timerMode === 'speech'
                   ? 'bg-emerald-950 text-emerald-400 border-emerald-800'
                   : timerMode === 'prep'
                   ? 'bg-blue-950 text-blue-400 border-blue-800'
@@ -462,17 +504,19 @@ export const ProjectorDisplay: React.FC = () => {
                   : 'bg-slate-950 text-slate-400 border-slate-800'
               }`}
             >
-              {timerMode === 'speech' ? 'LIVE' : timerMode.toUpperCase()}
+              {isOvertime ? 'OVERTIME' : timerMode === 'speech' ? 'LIVE' : timerMode.toUpperCase()}
             </span>
           </div>
 
           {/* Large Digits */}
           <div
             className={`font-mono text-7xl sm:text-8xl md:text-9xl font-black tracking-tight transition-colors duration-200 ${
-              isTimeUp
+              isOvertime
+                ? 'text-rose-400 animate-pulse drop-shadow-[0_0_45px_rgba(244,63,94,0.7)]'
+                : isTimeUp
                 ? 'text-rose-500 animate-pulse drop-shadow-[0_0_40px_rgba(244,63,94,0.6)]'
                 : isWarning
-                ? 'text-rose-400 animate-pulse drop-shadow-[0_0_30px_rgba(244,63,94,0.5)]'
+                ? 'text-amber-400 animate-pulse drop-shadow-[0_0_30px_rgba(251,191,36,0.5)]'
                 : timerMode === 'speech'
                 ? 'text-emerald-400 drop-shadow-[0_0_30px_rgba(52,211,153,0.3)]'
                 : timerMode === 'prep'
@@ -480,17 +524,19 @@ export const ProjectorDisplay: React.FC = () => {
                 : 'text-white'
             }`}
           >
-            {formatTime(remainingSeconds)}
+            {isOvertime ? computedTimer.formattedOvertime : formatTime(remainingSeconds)}
           </div>
 
           {/* Progress Bar */}
           <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
             <div
               className={`h-full rounded-full transition-all duration-300 ${
-                isTimeUp
+                isOvertime
+                  ? 'bg-rose-500'
+                  : isTimeUp
                   ? 'bg-rose-500'
                   : isWarning
-                  ? 'bg-rose-500'
+                  ? 'bg-amber-400'
                   : timerMode === 'prep'
                   ? 'bg-gradient-to-r from-blue-500 to-cyan-400'
                   : 'bg-gradient-to-r from-purple-500 to-emerald-400'
@@ -499,12 +545,17 @@ export const ProjectorDisplay: React.FC = () => {
             />
           </div>
 
-          {/* Time's Up Banner */}
-          {isTimeUp && (
+          {/* Time's Up / Overtime Banner */}
+          {isOvertime ? (
+            <div className="py-2.5 px-6 rounded-2xl bg-rose-600/30 border border-rose-500/60 text-rose-200 font-bold text-sm sm:text-base animate-pulse flex items-center justify-center gap-2">
+              <span>⚠️</span>
+              <span>SPEAKING LIMIT REACHED • OVERTIME ({computedTimer.formattedOvertime})</span>
+            </div>
+          ) : isTimeUp ? (
             <div className="py-2.5 px-6 rounded-2xl bg-rose-600/30 border border-rose-500/60 text-rose-300 font-bold text-sm sm:text-base animate-bounce">
               ⚠️ TIME EXPIRED • BUZZER ACTIVE
             </div>
-          )}
+          ) : null}
         </div>
 
         {/* Dynamic Round Prompt Content Display */}

@@ -96,6 +96,11 @@ interface AppContextType {
   resetTopicsStatus: () => Promise<void>;
   // Images
   addImage: (name: string, url: string) => Promise<EventImage>;
+  uploadImages: (payload: {
+    images?: Array<{ name: string; base64: string }>;
+    name?: string;
+    base64?: string;
+  }) => Promise<{ success: boolean; count: number; images: EventImage[]; allImages: EventImage[] }>;
   deleteImage: (id: string) => Promise<void>;
   resetImagesStatus: () => Promise<void>;
   // Settings
@@ -112,7 +117,7 @@ interface AppContextType {
   // Live Sync & Timer
   updateLiveSync: (updates: Partial<LiveSyncState>) => Promise<void>;
   sendTimerAction: (payload: {
-    action: 'start' | 'pause' | 'stop' | 'reset' | 'time_up';
+    action: 'start' | 'pause' | 'stop' | 'reset' | 'time_up' | 'transition_to_speech';
     phase?: 'prep' | 'speech';
     totalSeconds?: number;
     remainingSeconds?: number;
@@ -1040,6 +1045,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return created;
   }, []);
 
+  const uploadImages = useCallback(
+    async (payload: { images?: Array<{ name: string; base64: string }>; name?: string; base64?: string }) => {
+      const res = await api.uploadImages(payload);
+      setDb((prev) => (prev ? { ...prev, images: res.allImages } : prev));
+      return res;
+    },
+    []
+  );
+
   const deleteImage = useCallback(async (id: string) => {
     await api.deleteImage(id);
     setDb((prev) => (prev ? { ...prev, images: prev.images.filter((img) => img.id !== id) } : prev));
@@ -1154,6 +1168,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         importTopics,
         resetTopicsStatus,
         addImage,
+        uploadImages,
         deleteImage,
         resetImagesStatus,
         updateSettings,

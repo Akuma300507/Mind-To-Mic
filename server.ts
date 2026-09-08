@@ -26,11 +26,18 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const UPLOADS_DIR = path.join(process.cwd(), 'uploads');
 
-// Ensure data directory exists
+// Ensure directories exist
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
+if (!fs.existsSync(UPLOADS_DIR)) {
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+}
+
+// Serve uploaded image files statically
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Initial default seed
 const defaultSettings: EventSettings = {
@@ -40,22 +47,28 @@ const defaultSettings: EventSettings = {
     logoText: 'MIND TO MIC',
   },
   round1: {
+    prepEnabled: true,
     prepTimeSeconds: 30,
     speechTimeSeconds: 120,
-    allowImageReuse: false,
     buzzerEnabled: true,
+    buzzerTimeSeconds: 120,
+    allowImageReuse: false,
   },
   round2: {
-    activeWheelTopicCount: 20,
+    prepEnabled: false, // Round 2 starts speaking immediately
     prepTimeSeconds: 0,
     speechTimeSeconds: 120,
-    prepEnabled: false, // Round 2 has NO preparation time
-    topicReuseAllowed: false,
     buzzerEnabled: true,
+    buzzerTimeSeconds: 120,
+    activeWheelTopicCount: 16,
+    topicReuseAllowed: false,
   },
   round3: {
+    prepEnabled: false,
+    prepTimeSeconds: 0,
     speechTimeSeconds: 120,
     buzzerEnabled: true,
+    buzzerTimeSeconds: 120,
   },
   buzzer: {
     laptopBuzzer: true,
@@ -274,13 +287,24 @@ function createInitialStationState(id: string, name: string, location: string): 
     selectedTopic: null,
     wheelSpin: null,
     timerMode: 'idle',
+    timerStatus: 'idle',
+    timerDuration: 120,
+    timerStartTime: null,
+    timerAccumulatedMs: 0,
+    timerStopTime: null,
     timerTotalSeconds: 120,
     timerRemainingSeconds: 120,
     isTimerRunning: false,
     timerStartedAt: null,
     timerEndsAt: null,
+    buzzerTimeSeconds: 120,
+    buzzerPlayed: false,
+    isOvertime: false,
+    overtimeSeconds: 0,
     controllerDeviceId: null,
     controllerDeviceName: null,
+    claimedByDeviceId: null,
+    claimedByDeviceName: null,
     lastHeartbeat: 0,
   };
 }
@@ -534,37 +558,158 @@ app.post('/api/timer/action', (req: Request, res: Response) => {
   const now = Date.now();
 
   if (action === 'start') {
-    const rem = typeof remainingSeconds === 'number' ? remainingSeconds : totalSeconds;
-    db.liveSync.timerMode = phase || 'speech';
-    db.liveSync.timerTotalSeconds = totalSeconds;
+    const rem = typeof remainingSeconds === 'number' ? remainingSeconds : (totalSeconds || 120);
+    const duration = totalSeconds || rem || 120;
+    const activePhase = phase || 'speech';
+
+    db.liveSync.timerMode = activePhase;
+    db.liveSync.timerDuration = duration;
+    db.liveSync.timerTotalSeconds = duration;
     db.liveSync.timerRemainingSeconds = rem;
     db.liveSync.isTimerRunning = true;
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.timerStartTime = now;
     db.liveSync.timerStartedAt = now;
+    db.liveSync.timerAccumulatedMs = 0;
     db.liveSync.timerEndsAt = typeof endsAt === 'number' ? endsAt : now + rem * 1000;
+    db.liveSync.timerStopTime = null;
+    db.liveSync.isOvertime = false;
+    db.liveSync.overtimeSeconds = 0;
+
+    // Mirror to stations
+    Object.values(db.stations).forEach((s) => {
+      s.timerMode = activePhase;
+      s.timerDuration = duration;
+      s.timerTotalSeconds = duration;
+      s.timerRemainingSeconds = rem;
+      s.isTimerRunning = true;
+      s.timerStatus = 'running';
+      s.timerStartTime = now;
+      s.timerStartedAt = now;
+      s.timerAccumulatedMs = 0;
+      s.timerEndsAt = db.liveSync.timerEndsAt;
+      s.timerStopTime = null;
+      s.isOvertime = false;
+      s.overtimeSeconds = 0;
+      s.status = activePhase === 'prep' ? 'PREPARING' : 'SPEAKING';
+    });
+  } else if (action === 'transition_to_speech') {
+    const speechSec = totalSeconds || 120;
+    db.liveSync.timerMode = 'speech';
+    db.liveSync.timerDuration = speechSec;
+    db.liveSync.timerTotalSeconds = speechSec;
+    db.liveSync.timerRemainingSeconds = speechSec;
+    db.liveSync.isTimerRunning = true;
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.timerStartTime = now;
+    db.liveSync.timerStartedAt = now;
+    db.liveSync.timerAccumulatedMs = 0;
+    db.liveSync.timerEndsAt = now + speechSec * 1000;
+    db.liveSync.timerStopTime = null;
+    db.liveSync.isOvertime = false;
+    db.liveSync.overtimeSeconds = 0;
+
+    Object.values(db.stations).forEach((s) => {
+      s.timerMode = 'speech';
+      s.timerDuration = speechSec;
+      s.timerTotalSeconds = speechSec;
+      s.timerRemainingSeconds = speechSec;
+      s.isTimerRunning = true;
+      s.timerStatus = 'running';
+      s.timerStartTime = now;
+      s.timerStartedAt = now;
+      s.timerAccumulatedMs = 0;
+      s.timerEndsAt = db.liveSync.timerEndsAt;
+      s.timerStopTime = null;
+      s.isOvertime = false;
+      s.overtimeSeconds = 0;
+      s.status = 'SPEAKING';
+    });
   } else if (action === 'pause') {
-    let rem = db.liveSync.timerRemainingSeconds;
-    if (db.liveSync.isTimerRunning && db.liveSync.timerEndsAt) {
-      rem = Math.max(0, Math.ceil((db.liveSync.timerEndsAt - now) / 1000));
-    }
-    db.liveSync.isTimerRunning = false;
-    db.liveSync.timerRemainingSeconds = rem;
+    const runMs = db.liveSync.timerStartTime ? now - db.liveSync.timerStartTime : 0;
+    db.liveSync.timerAccumulatedMs = (db.liveSync.timerAccumulatedMs || 0) + runMs;
+    db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
     db.liveSync.timerEndsAt = null;
+    db.liveSync.timerStatus = 'paused';
+    db.liveSync.isTimerRunning = false;
+    const dur = db.liveSync.timerDuration || db.liveSync.timerTotalSeconds || 120;
+    const totalElapsedSec = Math.floor(db.liveSync.timerAccumulatedMs / 1000);
+    db.liveSync.timerRemainingSeconds = Math.max(0, dur - totalElapsedSec);
+
+    Object.values(db.stations).forEach((s) => {
+      s.timerAccumulatedMs = db.liveSync.timerAccumulatedMs;
+      s.timerStartTime = null;
+      s.timerStartedAt = null;
+      s.timerEndsAt = null;
+      s.timerStatus = 'paused';
+      s.isTimerRunning = false;
+      s.timerRemainingSeconds = db.liveSync.timerRemainingSeconds;
+      s.status = 'PAUSED';
+    });
+  } else if (action === 'resume') {
+    db.liveSync.timerStartTime = now;
+    db.liveSync.timerStartedAt = now;
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.isTimerRunning = true;
+    const dur = db.liveSync.timerDuration || db.liveSync.timerTotalSeconds || 120;
+    const totalElapsedSec = Math.floor((db.liveSync.timerAccumulatedMs || 0) / 1000);
+    const remSec = Math.max(0, dur - totalElapsedSec);
+    db.liveSync.timerEndsAt = now + remSec * 1000;
+    db.liveSync.timerRemainingSeconds = remSec;
+
+    Object.values(db.stations).forEach((s) => {
+      s.timerStartTime = now;
+      s.timerStartedAt = now;
+      s.timerStatus = 'running';
+      s.isTimerRunning = true;
+      s.timerEndsAt = db.liveSync.timerEndsAt;
+      s.timerRemainingSeconds = remSec;
+      s.status = s.timerMode === 'prep' ? 'PREPARING' : 'SPEAKING';
+    });
   } else if (action === 'stop' || action === 'reset') {
+    const isReset = action === 'reset';
+    const initSec = totalSeconds || db.liveSync.timerDuration || 120;
     db.liveSync.isTimerRunning = false;
-    db.liveSync.timerMode = action === 'reset' ? 'idle' : 'stopped';
-    db.liveSync.timerRemainingSeconds = totalSeconds || db.liveSync.timerTotalSeconds;
+    db.liveSync.timerStatus = isReset ? 'idle' : 'stopped';
+    db.liveSync.timerMode = isReset ? 'idle' : 'stopped';
+    db.liveSync.timerRemainingSeconds = isReset ? initSec : 0;
+    db.liveSync.timerDuration = initSec;
+    db.liveSync.timerTotalSeconds = initSec;
+    db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
+    db.liveSync.timerAccumulatedMs = 0;
     db.liveSync.timerEndsAt = null;
-  } else if (action === 'time_up') {
-    db.liveSync.isTimerRunning = false;
-    db.liveSync.timerMode = 'time_up';
-    db.liveSync.timerRemainingSeconds = 0;
-    db.liveSync.timerStartedAt = null;
-    db.liveSync.timerEndsAt = null;
+    db.liveSync.isOvertime = false;
+    db.liveSync.overtimeSeconds = 0;
+
+    Object.values(db.stations).forEach((s) => {
+      s.isTimerRunning = false;
+      s.timerStatus = isReset ? 'idle' : 'stopped';
+      s.timerMode = isReset ? 'idle' : 'stopped';
+      s.timerRemainingSeconds = isReset ? initSec : 0;
+      s.timerDuration = initSec;
+      s.timerTotalSeconds = initSec;
+      s.timerStartTime = null;
+      s.timerStartedAt = null;
+      s.timerAccumulatedMs = 0;
+      s.timerEndsAt = null;
+      s.isOvertime = false;
+      s.overtimeSeconds = 0;
+      s.status = isReset ? 'WAITING' : 'COMPLETED';
+    });
+  } else if (action === 'time_up' || action === 'limit_reached') {
+    db.liveSync.isOvertime = true;
+    db.liveSync.timerMode = 'speech';
+    db.liveSync.buzzerTimestamp = now;
+
+    Object.values(db.stations).forEach((s) => {
+      s.isOvertime = true;
+      s.buzzerPlayed = true;
+      s.buzzerTimestamp = now;
+    });
 
     if (db.settings.buzzer.autoBuzzerOnZero) {
-      db.liveSync.buzzerTimestamp = now;
       broadcastSSE('buzzer_trigger', {
         timestamp: now,
         source: 'timer_auto',
@@ -579,11 +724,16 @@ app.post('/api/timer/action', (req: Request, res: Response) => {
   persistDB();
   broadcastSSE('timer_update', {
     timerMode: db.liveSync.timerMode,
+    timerDuration: db.liveSync.timerDuration,
     timerTotalSeconds: db.liveSync.timerTotalSeconds,
     timerRemainingSeconds: db.liveSync.timerRemainingSeconds,
     isTimerRunning: db.liveSync.isTimerRunning,
+    timerStartTime: db.liveSync.timerStartTime,
     timerStartedAt: db.liveSync.timerStartedAt,
+    timerAccumulatedMs: db.liveSync.timerAccumulatedMs,
     timerEndsAt: db.liveSync.timerEndsAt,
+    isOvertime: db.liveSync.isOvertime,
+    overtimeSeconds: db.liveSync.overtimeSeconds,
   });
   broadcastSSE('live_sync_update', db.liveSync);
 
@@ -1111,59 +1261,163 @@ app.post('/api/stations/:id/spin-complete', (req: Request, res: Response) => {
   res.json({ success: true, station, winningTopic });
 });
 
-// Independent Station Timer Action
+// Independent Station Timer Action with Shared Timestamp Synchronization & Continuous Overtime
 app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
   const station = getStation(req.params.id);
   const { action, phase, totalSeconds, remainingSeconds, round, endsAt } = req.body;
   const now = Date.now();
+  const roundSettings = (db.settings as any)[`round${station.currentRound}`] || db.settings.round1;
 
   if (action === 'start') {
-    const rem = typeof remainingSeconds === 'number' ? remainingSeconds : totalSeconds || station.timerRemainingSeconds;
-    station.timerMode = phase || station.timerMode || 'speech';
-    station.timerTotalSeconds = totalSeconds || station.timerTotalSeconds;
+    const activePhase = phase || station.timerMode || (roundSettings.prepEnabled ? 'prep' : 'speech');
+    const defaultSec = activePhase === 'prep' ? (roundSettings.prepTimeSeconds || 30) : (roundSettings.speechTimeSeconds || 120);
+    const duration = totalSeconds || station.timerDuration || defaultSec;
+    const rem = typeof remainingSeconds === 'number' ? remainingSeconds : duration;
+
+    station.timerMode = activePhase;
+    station.timerDuration = duration;
+    station.timerTotalSeconds = duration;
     station.timerRemainingSeconds = rem;
     station.isTimerRunning = true;
+    station.timerStatus = 'running';
+    station.timerStartTime = now;
     station.timerStartedAt = now;
+    station.timerAccumulatedMs = 0;
     station.timerEndsAt = typeof endsAt === 'number' ? endsAt : now + rem * 1000;
+    station.timerStopTime = null;
     station.status = station.timerMode === 'prep' ? 'PREPARING' : 'SPEAKING';
+    station.buzzerPlayed = false;
+    station.isOvertime = false;
+    station.overtimeSeconds = 0;
 
     db.liveSync.timerMode = station.timerMode;
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.timerDuration = station.timerDuration;
     db.liveSync.timerTotalSeconds = station.timerTotalSeconds;
     db.liveSync.timerRemainingSeconds = station.timerRemainingSeconds;
     db.liveSync.isTimerRunning = true;
+    db.liveSync.timerStartTime = station.timerStartTime;
     db.liveSync.timerStartedAt = station.timerStartedAt;
+    db.liveSync.timerAccumulatedMs = station.timerAccumulatedMs;
     db.liveSync.timerEndsAt = station.timerEndsAt;
+    db.liveSync.timerStopTime = null;
   } else if (action === 'pause') {
-    let rem = station.timerRemainingSeconds;
-    if (station.isTimerRunning && station.timerEndsAt) {
-      rem = Math.max(0, Math.ceil((station.timerEndsAt - now) / 1000));
-    }
+    const runMs = station.timerStartTime ? now - station.timerStartTime : 0;
+    station.timerAccumulatedMs = (station.timerAccumulatedMs || 0) + runMs;
+    station.timerStartTime = null;
+    station.timerStartedAt = null;
+    station.timerEndsAt = null;
+    station.timerStatus = 'paused';
     station.isTimerRunning = false;
     station.status = 'PAUSED';
-    station.timerRemainingSeconds = rem;
-    station.timerStartedAt = null;
-    station.timerEndsAt = null;
+
+    const totalElapsedSec = Math.floor((station.timerAccumulatedMs || 0) / 1000);
+    station.timerRemainingSeconds = Math.max(0, (station.timerDuration || 120) - totalElapsedSec);
 
     db.liveSync.isTimerRunning = false;
-    db.liveSync.timerRemainingSeconds = rem;
+    db.liveSync.timerStatus = 'paused';
+    db.liveSync.timerRemainingSeconds = station.timerRemainingSeconds;
+    db.liveSync.timerAccumulatedMs = station.timerAccumulatedMs;
+    db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
     db.liveSync.timerEndsAt = null;
-  } else if (action === 'stop' || action === 'stop_with_buzzer') {
-    // STOP TIMER: Immediately stops timer and triggers buzzer
-    station.isTimerRunning = false;
-    station.status = 'TIME_UP';
-    station.timerMode = 'stopped';
-    station.timerRemainingSeconds = typeof remainingSeconds === 'number' ? remainingSeconds : station.timerRemainingSeconds;
-    station.timerStartedAt = null;
-    station.timerEndsAt = null;
+  } else if (action === 'resume') {
+    station.timerStartTime = now;
+    station.timerStartedAt = now;
+    station.timerStatus = 'running';
+    station.isTimerRunning = true;
+    station.status = station.timerMode === 'prep' ? 'PREPARING' : 'SPEAKING';
+
+    const totalElapsedSec = Math.floor((station.timerAccumulatedMs || 0) / 1000);
+    const remSec = Math.max(0, (station.timerDuration || 120) - totalElapsedSec);
+    station.timerEndsAt = now + remSec * 1000;
+
+    db.liveSync.timerStartTime = now;
+    db.liveSync.timerStartedAt = now;
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.isTimerRunning = true;
+    db.liveSync.timerEndsAt = station.timerEndsAt;
+  } else if (action === 'transition_to_speech') {
+    // Prep complete: automatically transition directly to Speaking phase
+    const speechSec = roundSettings.speechTimeSeconds || 120;
+    station.timerMode = 'speech';
+    station.timerDuration = speechSec;
+    station.timerTotalSeconds = speechSec;
+    station.timerRemainingSeconds = speechSec;
+    station.isTimerRunning = true;
+    station.timerStatus = 'running';
+    station.timerStartTime = now;
+    station.timerStartedAt = now;
+    station.timerAccumulatedMs = 0;
+    station.timerEndsAt = now + speechSec * 1000;
+    station.timerStopTime = null;
+    station.status = 'SPEAKING';
+    station.buzzerPlayed = false;
+    station.isOvertime = false;
+    station.overtimeSeconds = 0;
+
+    db.liveSync.timerMode = 'speech';
+    db.liveSync.timerStatus = 'running';
+    db.liveSync.timerDuration = speechSec;
+    db.liveSync.timerTotalSeconds = speechSec;
+    db.liveSync.timerRemainingSeconds = speechSec;
+    db.liveSync.isTimerRunning = true;
+    db.liveSync.timerStartTime = now;
+    db.liveSync.timerStartedAt = now;
+    db.liveSync.timerAccumulatedMs = 0;
+    db.liveSync.timerEndsAt = station.timerEndsAt;
+    db.liveSync.timerStopTime = null;
+  } else if (action === 'limit_reached' || action === 'time_up') {
+    // TIME LIMIT REACHED: trigger buzzer once, BUT KEEP TIMER RUNNING IN OVERTIME!
+    station.buzzerPlayed = true;
+    station.isOvertime = true;
     station.buzzerTimestamp = now;
     station.lastBuzzerEventId = `buzzer-${now}-${station.id}`;
 
+    db.liveSync.buzzerPlayed = true;
+    db.liveSync.isOvertime = true;
+    db.liveSync.buzzerTimestamp = now;
+
+    if (roundSettings.buzzerEnabled) {
+      broadcastSSE('buzzer_trigger', {
+        timestamp: now,
+        eventId: station.lastBuzzerEventId,
+        stationId: station.id,
+        stationName: station.name,
+        source: 'time_limit',
+        reason: 'Time Limit Reached (Overtime Begins)',
+        round: round || `Round ${station.currentRound}`,
+        participantName: station.activeParticipant?.name,
+        sound: db.settings.buzzer.sound,
+        volume: db.settings.buzzer.volume,
+      });
+    }
+  } else if (action === 'stop' || action === 'stop_with_buzzer') {
+    // STOP TIMER: Operator clicked Stop button -> Immediate Buzzer and freeze timer!
+    const runMs = station.timerStartTime ? now - station.timerStartTime : 0;
+    station.timerAccumulatedMs = (station.timerAccumulatedMs || 0) + runMs;
+    station.timerStartTime = null;
+    station.timerStartedAt = null;
+    station.timerStopTime = now;
+    station.timerEndsAt = null;
+    station.isTimerRunning = false;
+    station.timerStatus = 'stopped';
+    station.status = 'TIME_UP';
+    station.buzzerTimestamp = now;
+    station.lastBuzzerEventId = `buzzer-${now}-${station.id}`;
+
+    const totalElapsedSec = Math.floor(station.timerAccumulatedMs / 1000);
+    const duration = station.timerDuration || 120;
+    station.isOvertime = totalElapsedSec > duration;
+    station.overtimeSeconds = station.isOvertime ? totalElapsedSec - duration : 0;
+
     db.liveSync.isTimerRunning = false;
-    db.liveSync.timerMode = 'stopped';
-    db.liveSync.timerRemainingSeconds = station.timerRemainingSeconds;
+    db.liveSync.timerStatus = 'stopped';
+    db.liveSync.timerStopTime = now;
+    db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
     db.liveSync.timerEndsAt = null;
+    db.liveSync.buzzerTimestamp = now;
 
     broadcastSSE('buzzer_trigger', {
       timestamp: now,
@@ -1177,50 +1431,41 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
       sound: db.settings.buzzer.sound,
       volume: db.settings.buzzer.volume,
     });
-  } else if (action === 'time_up') {
-    // Time expired (00:00)
-    station.isTimerRunning = false;
-    station.status = 'TIME_UP';
-    station.timerMode = 'time_up';
-    station.timerRemainingSeconds = 0;
-    station.timerStartedAt = null;
-    station.timerEndsAt = null;
-    station.buzzerTimestamp = now;
-    station.lastBuzzerEventId = `buzzer-${now}-${station.id}`;
-
-    db.liveSync.isTimerRunning = false;
-    db.liveSync.timerMode = 'time_up';
-    db.liveSync.timerRemainingSeconds = 0;
-    db.liveSync.timerStartedAt = null;
-    db.liveSync.timerEndsAt = null;
-
-    if (db.settings.buzzer.autoBuzzerOnZero) {
-      broadcastSSE('buzzer_trigger', {
-        timestamp: now,
-        eventId: station.lastBuzzerEventId,
-        stationId: station.id,
-        stationName: station.name,
-        source: 'timer_auto',
-        reason: 'Time Expired (00:00)',
-        round: round || `Round ${station.currentRound}`,
-        participantName: station.activeParticipant?.name,
-        sound: db.settings.buzzer.sound,
-        volume: db.settings.buzzer.volume,
-      });
-    }
   } else if (action === 'reset') {
+    const initSec = (roundSettings.prepEnabled && (roundSettings.prepTimeSeconds || 0) > 0)
+      ? roundSettings.prepTimeSeconds
+      : (roundSettings.speechTimeSeconds || 120);
+
     station.isTimerRunning = false;
+    station.timerStatus = 'idle';
     station.status = 'WAITING';
     station.timerMode = 'idle';
-    station.timerRemainingSeconds = totalSeconds || station.timerTotalSeconds;
+    station.timerDuration = initSec;
+    station.timerTotalSeconds = initSec;
+    station.timerRemainingSeconds = initSec;
+    station.timerAccumulatedMs = 0;
+    station.timerStartTime = null;
     station.timerStartedAt = null;
     station.timerEndsAt = null;
+    station.timerStopTime = null;
+    station.buzzerPlayed = false;
+    station.isOvertime = false;
+    station.overtimeSeconds = 0;
 
     db.liveSync.isTimerRunning = false;
+    db.liveSync.timerStatus = 'idle';
     db.liveSync.timerMode = 'idle';
-    db.liveSync.timerRemainingSeconds = station.timerRemainingSeconds;
+    db.liveSync.timerDuration = initSec;
+    db.liveSync.timerTotalSeconds = initSec;
+    db.liveSync.timerRemainingSeconds = initSec;
+    db.liveSync.timerAccumulatedMs = 0;
+    db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
     db.liveSync.timerEndsAt = null;
+    db.liveSync.timerStopTime = null;
+    db.liveSync.buzzerPlayed = false;
+    db.liveSync.isOvertime = false;
+    db.liveSync.overtimeSeconds = 0;
   }
 
   persistDB();
@@ -1638,7 +1883,70 @@ app.post('/api/images', (req: Request, res: Response) => {
   db.images.push(newImg);
   persistDB();
   logAction('Image Added', `Added image: "${newImg.name}"`);
+  broadcastSSE('images_updated', db.images);
   res.json(newImg);
+});
+
+// Laptop Image Upload Endpoint (Saves to persistent online uploads directory)
+app.post('/api/images/upload', (req: Request, res: Response) => {
+  try {
+    const { images, name, base64 } = req.body;
+    const itemsToProcess: Array<{ name: string; base64: string }> = [];
+
+    if (Array.isArray(images)) {
+      itemsToProcess.push(...images);
+    } else if (base64) {
+      itemsToProcess.push({ name: name || 'Uploaded Image', base64 });
+    }
+
+    if (itemsToProcess.length === 0) {
+      return res.status(400).json({ error: 'No image data provided' });
+    }
+
+    const createdImages: EventImage[] = [];
+
+    for (const item of itemsToProcess) {
+      let data = item.base64;
+      let ext = 'jpg';
+
+      const match = data.match(/^data:image\/([a-zA-Z0-9+.-]+);base64,/);
+      if (match) {
+        ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+        data = data.replace(/^data:image\/[a-zA-Z0-9+.-]+;base64,/, '');
+      }
+
+      const buffer = Buffer.from(data, 'base64');
+      const cleanName = (item.name || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+      const filename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${cleanName}.${ext}`;
+      const filePath = path.join(UPLOADS_DIR, filename);
+
+      fs.writeFileSync(filePath, buffer);
+
+      const newImg: EventImage = {
+        id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: item.name ? item.name.replace(/\.[^/.]+$/, '') : `Image #${db.images.length + 1}`,
+        url: `/uploads/${filename}`,
+        status: 'available',
+      };
+
+      db.images.push(newImg);
+      createdImages.push(newImg);
+    }
+
+    persistDB();
+    logAction('Images Uploaded', `Uploaded ${createdImages.length} image(s) from laptop to persistent server repository.`);
+    broadcastSSE('images_updated', db.images);
+
+    res.json({
+      success: true,
+      count: createdImages.length,
+      images: createdImages,
+      allImages: db.images,
+    });
+  } catch (err: any) {
+    console.error('Image upload failed:', err);
+    res.status(500).json({ error: err.message || 'Failed to process image upload' });
+  }
 });
 
 app.delete('/api/images/:id', (req: Request, res: Response) => {

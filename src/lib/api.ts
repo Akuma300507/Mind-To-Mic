@@ -292,6 +292,19 @@ export const api = {
     return res.json();
   },
 
+  async uploadImages(payload: { images?: Array<{ name: string; base64: string }>; name?: string; base64?: string }): Promise<{ success: boolean; count: number; images: EventImage[]; allImages: EventImage[] }> {
+    const res = await fetch('/api/images/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to upload image(s)');
+    }
+    return res.json();
+  },
+
   async deleteImage(id: string): Promise<void> {
     const res = await fetch(`/api/images/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to delete image');

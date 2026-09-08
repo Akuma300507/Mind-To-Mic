@@ -106,22 +106,28 @@ export interface EventSettings {
     logoText: string;
   };
   round1: {
+    prepEnabled: boolean; // default true
     prepTimeSeconds: number; // default 30
     speechTimeSeconds: number; // default 120
+    buzzerEnabled: boolean; // default true
+    buzzerTimeSeconds: number; // default 120
     allowImageReuse: boolean;
-    buzzerEnabled: boolean;
   };
   round2: {
-    activeWheelTopicCount: number; // default 20
-    prepTimeSeconds?: number; // legacy/optional
+    prepEnabled: boolean; // default false (Round 2 starts speaking immediately)
+    prepTimeSeconds: number; // default 0
     speechTimeSeconds: number; // default 120
-    prepEnabled?: boolean;
+    buzzerEnabled: boolean; // default true
+    buzzerTimeSeconds: number; // default 120
+    activeWheelTopicCount: number; // default 16
     topicReuseAllowed: boolean;
-    buzzerEnabled: boolean;
   };
   round3: {
+    prepEnabled: boolean; // default false
+    prepTimeSeconds: number; // default 0
     speechTimeSeconds: number; // default 120
-    buzzerEnabled: boolean;
+    buzzerEnabled: boolean; // default true
+    buzzerTimeSeconds: number; // default 120
   };
   buzzer: {
     laptopBuzzer: boolean;
@@ -149,6 +155,7 @@ export type StationStatus =
   | 'WAITING'
   | 'PREPARING'
   | 'SPINNING'
+  | 'READY_TO_SPEAK'
   | 'SPEAKING'
   | 'TIME_UP'
   | 'PAUSED'
@@ -180,23 +187,37 @@ export interface StationState {
   selectedImage?: EventImage | null;
   selectedTopicId: string | null;
   selectedTopic?: Topic | null;
+  pendingTopic?: Topic | null;
 
   // Round 2 Wheel Animation
   wheelSpin: StationWheelSpin | null;
 
-  // Independent Station Timers
+  // Robust Shared Backend Timers
   timerMode: 'idle' | 'prep' | 'speech' | 'stopped' | 'time_up';
-  timerTotalSeconds: number;
-  timerRemainingSeconds: number;
+  timerStatus?: 'idle' | 'running' | 'paused' | 'stopped' | 'time_up';
+  timerDuration?: number; // Configured total duration in seconds
+  timerStartTime?: number | null; // Millisecond timestamp when current run started
+  timerAccumulatedMs?: number; // Total milliseconds elapsed prior to current run
+  timerStopTime?: number | null; // Millisecond timestamp when timer stopped
+  timerTotalSeconds: number; // Legacy total seconds
+  timerRemainingSeconds: number; // Legacy remaining seconds
   isTimerRunning: boolean;
-  timerStartedAt?: number | null;
-  timerEndsAt?: number | null;
+  timerStartedAt?: number | null; // Legacy ms timestamp
+  timerEndsAt?: number | null; // Millisecond timestamp when configured limit ends
+
+  // Overtime and buzzer state
+  buzzerTimeSeconds?: number;
+  buzzerPlayed?: boolean;
+  isOvertime?: boolean;
+  overtimeSeconds?: number;
 
   // Buzzer
   buzzerTimestamp?: number;
   lastBuzzerEventId?: string;
 
   // Connected operator device tracking & lock
+  claimedByDeviceId?: string | null;
+  claimedByDeviceName?: string | null;
   controllerDeviceId?: string | null;
   controllerDeviceName?: string | null;
   lastHeartbeat?: number;
@@ -206,11 +227,20 @@ export interface LiveSyncState {
   currentRound: 1 | 2 | 3 | null;
   activeParticipantId: string | null;
   timerMode: 'idle' | 'prep' | 'speech' | 'stopped' | 'time_up';
+  timerStatus?: 'idle' | 'running' | 'paused' | 'stopped' | 'time_up';
+  timerDuration?: number;
+  timerStartTime?: number | null;
+  timerAccumulatedMs?: number;
+  timerStopTime?: number | null;
   timerRemainingSeconds: number;
   timerTotalSeconds: number;
   isTimerRunning: boolean;
   timerStartedAt?: number | null;
   timerEndsAt?: number | null;
+  buzzerTimeSeconds?: number;
+  buzzerPlayed?: boolean;
+  isOvertime?: boolean;
+  overtimeSeconds?: number;
   activeItem?: {
     type: 'image' | 'topic' | 'final';
     title: string;
