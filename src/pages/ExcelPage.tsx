@@ -140,7 +140,7 @@ export const ExcelPage: React.FC = () => {
             </div>
             <h3 className="text-lg font-bold text-white font-['Outfit']">Participant Roster</h3>
             <p className="text-xs text-slate-400 leading-relaxed">
-              Import participant lists with Contestant ID, Full Name, College, Department, and any active custom fields.
+              Import participant lists with Contestant ID, Full Name, Mobile Number, and any active custom fields.
             </p>
           </div>
 

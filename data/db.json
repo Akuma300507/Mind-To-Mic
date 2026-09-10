@@ -6,6 +6,8 @@
       "name": "Aarav Sharma",
       "college": "Delhi Technological University",
       "department": "Computer Science",
+      "stationId": "station-a",
+      "stationName": "Station A",
       "status": "active",
       "round1Status": "completed_early",
       "round2Status": "pending",
@@ -13,8 +15,11 @@
       "customData": {
         "phone": "+91 98765 43210"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.404Z",
+      "updatedAt": "2026-09-08T15:44:51.755Z",
+      "round1Qualified": "qualified",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     },
     {
       "id": "p-102",
@@ -22,15 +27,20 @@
       "name": "Maya Chen",
       "college": "Metropolitan Institute of Technology",
       "department": "Literature & Communications",
+      "stationId": "station-b",
+      "stationName": "Station B",
       "status": "active",
-      "round1Status": "completed_early",
+      "round1Status": "pending",
       "round2Status": "pending",
       "round3Status": "pending",
       "customData": {
         "phone": "+1 415 555 0192"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.405Z",
+      "updatedAt": "2026-09-08T15:25:56.405Z",
+      "round1Qualified": "pending",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     },
     {
       "id": "p-103",
@@ -38,6 +48,8 @@
       "name": "Lucas Dupont",
       "college": "Sorbonne University",
       "department": "Philosophy & Ethics",
+      "stationId": "station-a",
+      "stationName": "Station A",
       "status": "active",
       "round1Status": "pending",
       "round2Status": "pending",
@@ -45,8 +57,11 @@
       "customData": {
         "phone": "+33 6 12 34 56 78"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.405Z",
+      "updatedAt": "2026-09-08T15:25:56.405Z",
+      "round1Qualified": "pending",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     },
     {
       "id": "p-104",
@@ -54,6 +69,8 @@
       "name": "Priya Patel",
       "college": "National Law School",
       "department": "Public Policy",
+      "stationId": "station-c",
+      "stationName": "Station C",
       "status": "active",
       "round1Status": "pending",
       "round2Status": "pending",
@@ -61,8 +78,11 @@
       "customData": {
         "phone": "+91 91234 56789"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.405Z",
+      "updatedAt": "2026-09-08T15:25:56.405Z",
+      "round1Qualified": "pending",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     },
     {
       "id": "p-105",
@@ -70,6 +90,8 @@
       "name": "David Kim",
       "college": "Seoul National University",
       "department": "Economics",
+      "stationId": "station-d",
+      "stationName": "Station D",
       "status": "active",
       "round1Status": "pending",
       "round2Status": "pending",
@@ -77,8 +99,11 @@
       "customData": {
         "phone": "+82 10 9876 5432"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.405Z",
+      "updatedAt": "2026-09-08T15:25:56.405Z",
+      "round1Qualified": "pending",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     },
     {
       "id": "p-106",
@@ -86,6 +111,8 @@
       "name": "Zara Al-Mansoor",
       "college": "King Fahd University",
       "department": "Media Studies",
+      "stationId": "station-b",
+      "stationName": "Station B",
       "status": "active",
       "round1Status": "pending",
       "round2Status": "pending",
@@ -93,8 +120,11 @@
       "customData": {
         "phone": "+971 50 123 4567"
       },
-      "createdAt": "2026-09-07T16:49:23.389Z",
-      "updatedAt": "2026-09-07T16:49:23.389Z"
+      "createdAt": "2026-09-08T15:25:56.405Z",
+      "updatedAt": "2026-09-08T15:25:56.405Z",
+      "round1Qualified": "pending",
+      "round2Qualified": "pending",
+      "round3Qualified": "pending"
     }
   ],
   "customFields": [
@@ -112,239 +142,255 @@
       "id": "top-1",
       "topic": "Is AI creative or merely a parrot of human culture?",
       "category": "Technology",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-001"
     },
     {
       "id": "top-2",
       "topic": "The Power of Silence in an Age of Constant Noise",
       "category": "Philosophy",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-002"
     },
     {
       "id": "top-3",
       "topic": "Should college degrees remain the benchmark for intellect?",
       "category": "Education",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-003"
     },
     {
       "id": "top-4",
       "topic": "Digital Privacy: A Universal Right or a Modern Myth?",
       "category": "Society",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-004"
     },
     {
       "id": "top-5",
       "topic": "Can empathy be taught or is it hardwired?",
       "category": "Psychology",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-005"
     },
     {
       "id": "top-6",
       "topic": "The Myth of the Overnight Success Story",
       "category": "Mindset",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-006"
     },
     {
       "id": "top-7",
       "topic": "Why Failure is the Highest Form of Curriculum",
       "category": "Mindset",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-007"
     },
     {
       "id": "top-8",
       "topic": "Are algorithms polarizing human empathy?",
       "category": "Technology",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-008"
     },
     {
       "id": "top-9",
       "topic": "The Future of Clean Energy: Science vs Politics",
       "category": "Environment",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-009"
     },
     {
       "id": "top-10",
       "topic": "Is Cancel Culture Accountability or Retribution?",
       "category": "Culture",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-010"
     },
     {
       "id": "top-11",
       "topic": "The Vanishing Art of Deep Focused Work",
       "category": "Productivity",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-011"
     },
     {
       "id": "top-12",
       "topic": "Does Wealth Obligate Philanthropy?",
       "category": "Ethics",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-012"
     },
     {
       "id": "top-13",
       "topic": "Space Colonization vs Fixing Earth: Where should billions go?",
       "category": "Future",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-013"
     },
     {
       "id": "top-14",
       "topic": "The Illusion of Infinite Free Time",
       "category": "Time",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-014"
     },
     {
       "id": "top-15",
       "topic": "Is Social Media Making Us lonelier together?",
       "category": "Society",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-015"
     },
     {
       "id": "top-16",
       "topic": "Leadership in Crisis: Decisiveness vs Compassion",
       "category": "Leadership",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-016"
     },
     {
       "id": "top-17",
       "topic": "The Paradox of Choice: Does more freedom bring happiness?",
       "category": "Philosophy",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-017"
     },
     {
       "id": "top-18",
       "topic": "Virtual Reality vs Physical Reality: The new divide",
       "category": "Technology",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-018"
     },
     {
       "id": "top-19",
       "topic": "Who is responsible for climate action: Individuals or Corporations?",
       "category": "Environment",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-019"
     },
     {
       "id": "top-20",
       "topic": "The Price of Perfectionism in Youth",
       "category": "Psychology",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-020"
     },
     {
       "id": "top-21",
       "topic": "Can Humor be used as an Instrument of Truth?",
       "category": "Culture",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-021"
     },
     {
       "id": "top-22",
       "topic": "Why We Need More Generalists, Not Just Specialists",
       "category": "Career",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-022"
     },
     {
       "id": "top-23",
       "topic": "The Ethics of Human Genetic Engineering",
       "category": "Bioethics",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-023"
     },
     {
       "id": "top-24",
       "topic": "The Art of Disagreeing Without Becoming Enemies",
       "category": "Communication",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-024"
     },
     {
       "id": "top-25",
       "topic": "Will Automation Create a Leisure Society or Economic Despair?",
       "category": "Economics",
-      "status": "available"
+      "status": "available",
+      "topicId": "TOP-025"
     }
   ],
   "images": [
     {
       "id": "img-1",
-      "name": "A Solitary Mic on a Dark Stage",
+      "name": "IMG-001",
       "url": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
-    },
-    {
-      "id": "img-2",
-      "name": "The Clockwork Gears of Thought",
-      "url": "https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
-    },
-    {
-      "id": "img-3",
-      "name": "Neon Labyrinth of the City",
-      "url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
-    },
-    {
-      "id": "img-4",
-      "name": "Human Hand Meeting Robotic Fingers",
-      "url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
-    },
-    {
-      "id": "img-5",
-      "name": "Roots of an Ancient Tree in Stone",
-      "url": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
-      "status": "used",
-      "usedByParticipantId": "p-102",
-      "usedByParticipantName": "Maya Chen",
-      "usedAt": "2026-09-07T17:14:52.290Z"
-    },
-    {
-      "id": "img-6",
-      "name": "Astronaut Staring into the Cosmic Abyss",
-      "url": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
       "status": "used",
       "usedByParticipantId": "p-101",
       "usedByParticipantName": "Aarav Sharma",
-      "usedAt": "2026-09-07T17:21:16.405Z"
+      "usedAt": "2026-09-08T15:38:24.513Z",
+      "imageId": "IMG-001"
+    },
+    {
+      "id": "img-2",
+      "name": "IMG-002",
+      "url": "https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=1200&q=80",
+      "status": "available",
+      "imageId": "IMG-002"
+    },
+    {
+      "id": "img-3",
+      "name": "IMG-003",
+      "url": "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80",
+      "status": "available",
+      "imageId": "IMG-003"
+    },
+    {
+      "id": "img-4",
+      "name": "IMG-004",
+      "url": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+      "status": "available",
+      "imageId": "IMG-004"
+    },
+    {
+      "id": "img-5",
+      "name": "IMG-005",
+      "url": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
+      "status": "available",
+      "imageId": "IMG-005"
+    },
+    {
+      "id": "img-6",
+      "name": "IMG-006",
+      "url": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+      "status": "available",
+      "imageId": "IMG-006"
     },
     {
       "id": "img-7",
-      "name": "A Single Lighthouse in a Stormy Ocean",
+      "name": "IMG-007",
       "url": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
+      "status": "available",
+      "imageId": "IMG-007"
     },
     {
       "id": "img-8",
-      "name": "Chess King Toppled in Moonlight",
+      "name": "IMG-008",
       "url": "https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=1200&q=80",
-      "status": "available"
+      "status": "available",
+      "imageId": "IMG-008"
     }
   ],
   "round1Results": [
     {
-      "participantId": "p-102",
-      "participantName": "Maya Chen",
-      "college": "Metropolitan Institute of Technology",
-      "imageId": "img-5",
-      "imageName": "Roots of an Ancient Tree in Stone",
-      "imageUrl": "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
-      "prepDurationSeconds": 30,
-      "speechDurationSeconds": 0,
-      "targetSpeechDurationSeconds": 120,
-      "startTime": "2026-09-07T17:14:53.828Z",
-      "endTime": "2026-09-07T17:14:56.467Z",
-      "status": "completed_early",
-      "id": "r1-1788801292290"
-    },
-    {
       "participantId": "p-101",
       "participantName": "Aarav Sharma",
       "college": "Delhi Technological University",
-      "imageId": "img-6",
-      "imageName": "Astronaut Staring into the Cosmic Abyss",
-      "imageUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80",
+      "imageId": "img-1",
+      "imageName": "A Solitary Mic on a Dark Stage",
+      "imageUrl": "https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=80",
       "prepDurationSeconds": 30,
-      "speechDurationSeconds": 10,
+      "speechDurationSeconds": 0,
       "targetSpeechDurationSeconds": 120,
-      "startTime": "2026-09-07T17:20:40.263Z",
-      "endTime": "2026-09-07T17:21:20.577Z",
+      "startTime": "2026-09-08T15:38:28.386Z",
+      "endTime": "2026-09-08T15:38:28.880Z",
       "status": "completed_early",
-      "id": "r1-1788801676405"
+      "id": "r1-1788881904513",
+      "qualification": "qualified"
     }
   ],
   "round2Results": [],
@@ -353,23 +399,33 @@
     "event": {
       "name": "MIND TO MIC",
       "tagline": "THINK. SPEAK. EXPRESS.",
-      "logoText": "MIND TO MIC"
+      "logoText": "MIND TO MIC",
+      "inspireLogoUrl": "/uploads/inspire-logo.svg",
+      "inspireLogoName": "Inspire 2K26 - The Arcade Archives"
     },
     "round1": {
+      "prepEnabled": true,
       "prepTimeSeconds": 30,
       "speechTimeSeconds": 120,
-      "allowImageReuse": false,
-      "buzzerEnabled": true
+      "buzzerEnabled": true,
+      "buzzerTimeSeconds": 120,
+      "allowImageReuse": false
     },
     "round2": {
-      "activeWheelTopicCount": 20,
+      "prepEnabled": false,
+      "prepTimeSeconds": 0,
       "speechTimeSeconds": 120,
-      "topicReuseAllowed": false,
-      "buzzerEnabled": true
+      "buzzerEnabled": true,
+      "buzzerTimeSeconds": 120,
+      "activeWheelTopicCount": 16,
+      "topicReuseAllowed": false
     },
     "round3": {
+      "prepEnabled": false,
+      "prepTimeSeconds": 0,
       "speechTimeSeconds": 120,
-      "buzzerEnabled": true
+      "buzzerEnabled": true,
+      "buzzerTimeSeconds": 120
     },
     "buzzer": {
       "laptopBuzzer": true,
@@ -380,79 +436,497 @@
     },
     "stations": [
       {
-        "id": "main",
-        "name": "Main Auditorium Stage",
-        "location": "Auditorium"
-      },
-      {
-        "id": "station-1",
-        "name": "Station Alpha",
+        "id": "station-a",
+        "name": "Station A",
         "location": "Room 101"
       },
       {
-        "id": "station-2",
-        "name": "Station Beta",
+        "id": "station-b",
+        "name": "Station B",
         "location": "Room 102"
+      },
+      {
+        "id": "station-c",
+        "name": "Station C",
+        "location": "Room 103"
+      },
+      {
+        "id": "station-d",
+        "name": "Station D",
+        "location": "Auditorium Stage"
       }
     ]
   },
   "history": [
     {
-      "id": "log-1788801676405-8qmze",
-      "timestamp": "2026-09-07T17:21:16.405Z",
+      "id": "log-1789043603672-wglkb",
+      "timestamp": "2026-09-10T12:33:23.672Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station C switched to Round 2"
+    },
+    {
+      "id": "log-1789042763502-d3u56",
+      "timestamp": "2026-09-10T12:19:23.502Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station C switched to Round 2"
+    },
+    {
+      "id": "log-1789041290554-dw1q4",
+      "timestamp": "2026-09-10T11:54:50.554Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station A switched to Round 2"
+    },
+    {
+      "id": "log-1788882303156-z19j7",
+      "timestamp": "2026-09-08T15:45:03.156Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station C switched to Round 3"
+    },
+    {
+      "id": "log-1788882294456-wy5h7",
+      "timestamp": "2026-09-08T15:44:54.456Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station C switched to Round 2"
+    },
+    {
+      "id": "log-1788882291755-yqwwl",
+      "timestamp": "2026-09-08T15:44:51.755Z",
+      "action": "Qualification Updated",
+      "round": "Round 1",
+      "participantId": "p-101",
+      "participantName": "Aarav Sharma",
+      "details": "Participant Aarav Sharma marked as QUALIFIED in Round 1"
+    },
+    {
+      "id": "log-1788882290048-sd3f2",
+      "timestamp": "2026-09-08T15:44:50.048Z",
+      "action": "Qualification Updated",
+      "round": "Round 1",
+      "participantId": "p-101",
+      "participantName": "Aarav Sharma",
+      "details": "Participant Aarav Sharma marked as DISQUALIFIED in Round 1"
+    },
+    {
+      "id": "log-1788882269192-9gfb8",
+      "timestamp": "2026-09-08T15:44:29.192Z",
+      "action": "Station Round Updated",
+      "round": "General",
+      "details": "Station C switched to Round 2"
+    },
+    {
+      "id": "log-1788881904513-np09g",
+      "timestamp": "2026-09-08T15:38:24.513Z",
       "action": "Round 1 Completed",
       "round": "Round 1",
       "participantId": "p-101",
       "participantName": "Aarav Sharma",
-      "details": "Participant Aarav Sharma completed Round 1 speech (10s)"
+      "details": "Participant Aarav Sharma completed Round 1 speech (0s)"
     },
     {
-      "id": "log-1788801292290-bnh9q",
-      "timestamp": "2026-09-07T17:14:52.291Z",
-      "action": "Round 1 Completed",
-      "round": "Round 1",
-      "participantId": "p-102",
-      "participantName": "Maya Chen",
-      "details": "Participant Maya Chen completed Round 1 speech (0s)"
-    },
-    {
-      "id": "log-1788801054883-flxkz",
-      "timestamp": "2026-09-07T17:10:54.883Z",
-      "action": "Buzzer Triggered",
+      "id": "log-1788881902512-e5hzu",
+      "timestamp": "2026-09-08T15:38:22.512Z",
+      "action": "Station Round Updated",
       "round": "General",
-      "details": "Navbar Quick Buzzer sounded by organizer (General) for Aarav Sharma"
+      "details": "Station C switched to Round 1"
     },
     {
-      "id": "log-1788801053958-xryfq",
-      "timestamp": "2026-09-07T17:10:53.958Z",
-      "action": "Buzzer Triggered",
+      "id": "log-1788881796160-4u4mh",
+      "timestamp": "2026-09-08T15:36:36.160Z",
+      "action": "Reset All Data",
       "round": "General",
-      "details": "Navbar Quick Buzzer sounded by organizer (General) for Aarav Sharma"
+      "details": "Organizer restored factory defaults for the event database."
     },
     {
       "id": "log-1",
-      "timestamp": "2026-09-07T16:49:23.389Z",
+      "timestamp": "2026-09-08T15:25:56.405Z",
       "action": "Event Initialized",
       "round": "General",
       "details": "Mind to Mic competition platform booted with initial participant and topic roster."
     }
   ],
+  "stations": {
+    "station-a": {
+      "id": "station-a",
+      "name": "Station A",
+      "location": "Room 101",
+      "currentRound": 2,
+      "status": "WAITING",
+      "activeParticipantId": "p-101",
+      "activeParticipant": {
+        "id": "p-101",
+        "participantNumber": "M2M-001",
+        "name": "Aarav Sharma",
+        "college": "Delhi Technological University",
+        "department": "Computer Science",
+        "stationId": "station-a",
+        "stationName": "Station A",
+        "status": "active",
+        "round1Status": "completed_early",
+        "round2Status": "pending",
+        "round3Status": "pending",
+        "customData": {
+          "phone": "+91 98765 43210"
+        },
+        "createdAt": "2026-09-08T15:25:56.404Z",
+        "updatedAt": "2026-09-08T15:44:51.755Z",
+        "round1Qualified": "qualified",
+        "round2Qualified": "pending",
+        "round3Qualified": "pending"
+      },
+      "selectedImageId": null,
+      "selectedImage": null,
+      "selectedTopicId": null,
+      "selectedTopic": null,
+      "wheelSpin": null,
+      "timerMode": "idle",
+      "timerStatus": "stopped",
+      "timerDuration": 30,
+      "timerStartTime": null,
+      "timerAccumulatedMs": 0,
+      "timerStopTime": null,
+      "timerTotalSeconds": 120,
+      "timerRemainingSeconds": 120,
+      "isTimerRunning": false,
+      "timerStartedAt": null,
+      "timerEndsAt": null,
+      "buzzerTimeSeconds": 120,
+      "buzzerPlayed": false,
+      "isOvertime": false,
+      "overtimeSeconds": 0,
+      "controllerDeviceId": "dev-u0qlhuj",
+      "controllerDeviceName": "Station A Operator",
+      "claimedByDeviceId": null,
+      "claimedByDeviceName": null,
+      "lastHeartbeat": 1789041410812
+    },
+    "station-b": {
+      "id": "station-b",
+      "name": "Station B",
+      "location": "Room 102",
+      "currentRound": 1,
+      "status": "COMPLETED",
+      "activeParticipantId": null,
+      "activeParticipant": null,
+      "selectedImageId": null,
+      "selectedImage": null,
+      "selectedTopicId": null,
+      "selectedTopic": null,
+      "wheelSpin": null,
+      "timerMode": "stopped",
+      "timerStatus": "stopped",
+      "timerDuration": 30,
+      "timerStartTime": null,
+      "timerAccumulatedMs": 0,
+      "timerStopTime": null,
+      "timerTotalSeconds": 30,
+      "timerRemainingSeconds": 0,
+      "isTimerRunning": false,
+      "timerStartedAt": null,
+      "timerEndsAt": null,
+      "buzzerTimeSeconds": 120,
+      "buzzerPlayed": false,
+      "isOvertime": false,
+      "overtimeSeconds": 0,
+      "controllerDeviceId": null,
+      "controllerDeviceName": null,
+      "claimedByDeviceId": null,
+      "claimedByDeviceName": null,
+      "lastHeartbeat": 0
+    },
+    "station-c": {
+      "id": "station-c",
+      "name": "Station C",
+      "location": "Room 103",
+      "currentRound": 2,
+      "status": "WAITING",
+      "activeParticipantId": "p-104",
+      "activeParticipant": {
+        "id": "p-104",
+        "participantNumber": "M2M-004",
+        "name": "Priya Patel",
+        "college": "National Law School",
+        "department": "Public Policy",
+        "stationId": "station-c",
+        "stationName": "Station C",
+        "status": "active",
+        "round1Status": "pending",
+        "round2Status": "pending",
+        "round3Status": "pending",
+        "customData": {
+          "phone": "+91 91234 56789"
+        },
+        "createdAt": "2026-09-08T15:25:56.405Z",
+        "updatedAt": "2026-09-08T15:25:56.405Z",
+        "round1Qualified": "pending",
+        "round2Qualified": "pending",
+        "round3Qualified": "pending"
+      },
+      "selectedImageId": null,
+      "selectedImage": null,
+      "selectedTopicId": null,
+      "selectedTopic": null,
+      "wheelSpin": null,
+      "timerMode": "idle",
+      "timerStatus": "stopped",
+      "timerDuration": 30,
+      "timerStartTime": null,
+      "timerAccumulatedMs": 0,
+      "timerStopTime": 1788881904512,
+      "timerTotalSeconds": 120,
+      "timerRemainingSeconds": 120,
+      "isTimerRunning": false,
+      "timerStartedAt": null,
+      "timerEndsAt": null,
+      "buzzerTimeSeconds": 120,
+      "buzzerPlayed": false,
+      "isOvertime": false,
+      "overtimeSeconds": 0,
+      "controllerDeviceId": "dev-j3feu26",
+      "controllerDeviceName": "Station C Operator",
+      "claimedByDeviceId": null,
+      "claimedByDeviceName": null,
+      "lastHeartbeat": 1789044556433,
+      "buzzerTimestamp": 1788881904512,
+      "lastBuzzerEventId": "buzzer-1788881904512-station-c"
+    },
+    "station-d": {
+      "id": "station-d",
+      "name": "Station D",
+      "location": "Auditorium Stage",
+      "currentRound": 1,
+      "status": "COMPLETED",
+      "activeParticipantId": null,
+      "activeParticipant": null,
+      "selectedImageId": null,
+      "selectedImage": null,
+      "selectedTopicId": null,
+      "selectedTopic": null,
+      "wheelSpin": null,
+      "timerMode": "stopped",
+      "timerStatus": "stopped",
+      "timerDuration": 30,
+      "timerStartTime": null,
+      "timerAccumulatedMs": 0,
+      "timerStopTime": null,
+      "timerTotalSeconds": 30,
+      "timerRemainingSeconds": 0,
+      "isTimerRunning": false,
+      "timerStartedAt": null,
+      "timerEndsAt": null,
+      "buzzerTimeSeconds": 120,
+      "buzzerPlayed": false,
+      "isOvertime": false,
+      "overtimeSeconds": 0,
+      "controllerDeviceId": null,
+      "controllerDeviceName": null,
+      "claimedByDeviceId": null,
+      "claimedByDeviceName": null,
+      "lastHeartbeat": 0
+    }
+  },
   "liveSync": {
-    "currentRound": 1,
-    "activeParticipantId": "p-101",
+    "currentRound": 2,
+    "activeParticipantId": "p-104",
     "timerMode": "idle",
     "timerRemainingSeconds": 120,
     "timerTotalSeconds": 120,
     "isTimerRunning": false,
-    "timerStartedAt": null,
-    "timerEndsAt": null,
-    "locationId": "main",
-    "activeItem": {
-      "type": "image",
-      "title": "Astronaut Staring into the Cosmic Abyss",
-      "mediaUrl": "https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80"
+    "stationStates": {
+      "station-a": {
+        "id": "station-a",
+        "name": "Station A",
+        "location": "Room 101",
+        "currentRound": 2,
+        "status": "WAITING",
+        "activeParticipantId": "p-101",
+        "activeParticipant": {
+          "id": "p-101",
+          "participantNumber": "M2M-001",
+          "name": "Aarav Sharma",
+          "college": "Delhi Technological University",
+          "department": "Computer Science",
+          "stationId": "station-a",
+          "stationName": "Station A",
+          "status": "active",
+          "round1Status": "completed_early",
+          "round2Status": "pending",
+          "round3Status": "pending",
+          "customData": {
+            "phone": "+91 98765 43210"
+          },
+          "createdAt": "2026-09-08T15:25:56.404Z",
+          "updatedAt": "2026-09-08T15:44:51.755Z",
+          "round1Qualified": "qualified",
+          "round2Qualified": "pending",
+          "round3Qualified": "pending"
+        },
+        "selectedImageId": null,
+        "selectedImage": null,
+        "selectedTopicId": null,
+        "selectedTopic": null,
+        "wheelSpin": null,
+        "timerMode": "idle",
+        "timerStatus": "stopped",
+        "timerDuration": 30,
+        "timerStartTime": null,
+        "timerAccumulatedMs": 0,
+        "timerStopTime": null,
+        "timerTotalSeconds": 120,
+        "timerRemainingSeconds": 120,
+        "isTimerRunning": false,
+        "timerStartedAt": null,
+        "timerEndsAt": null,
+        "buzzerTimeSeconds": 120,
+        "buzzerPlayed": false,
+        "isOvertime": false,
+        "overtimeSeconds": 0,
+        "controllerDeviceId": "dev-u0qlhuj",
+        "controllerDeviceName": "Station A Operator",
+        "claimedByDeviceId": null,
+        "claimedByDeviceName": null,
+        "lastHeartbeat": 1789041410812
+      },
+      "station-b": {
+        "id": "station-b",
+        "name": "Station B",
+        "location": "Room 102",
+        "currentRound": 1,
+        "status": "COMPLETED",
+        "activeParticipantId": null,
+        "activeParticipant": null,
+        "selectedImageId": null,
+        "selectedImage": null,
+        "selectedTopicId": null,
+        "selectedTopic": null,
+        "wheelSpin": null,
+        "timerMode": "stopped",
+        "timerStatus": "stopped",
+        "timerDuration": 30,
+        "timerStartTime": null,
+        "timerAccumulatedMs": 0,
+        "timerStopTime": null,
+        "timerTotalSeconds": 30,
+        "timerRemainingSeconds": 0,
+        "isTimerRunning": false,
+        "timerStartedAt": null,
+        "timerEndsAt": null,
+        "buzzerTimeSeconds": 120,
+        "buzzerPlayed": false,
+        "isOvertime": false,
+        "overtimeSeconds": 0,
+        "controllerDeviceId": null,
+        "controllerDeviceName": null,
+        "claimedByDeviceId": null,
+        "claimedByDeviceName": null,
+        "lastHeartbeat": 0
+      },
+      "station-c": {
+        "id": "station-c",
+        "name": "Station C",
+        "location": "Room 103",
+        "currentRound": 2,
+        "status": "WAITING",
+        "activeParticipantId": "p-104",
+        "activeParticipant": {
+          "id": "p-104",
+          "participantNumber": "M2M-004",
+          "name": "Priya Patel",
+          "college": "National Law School",
+          "department": "Public Policy",
+          "stationId": "station-c",
+          "stationName": "Station C",
+          "status": "active",
+          "round1Status": "pending",
+          "round2Status": "pending",
+          "round3Status": "pending",
+          "customData": {
+            "phone": "+91 91234 56789"
+          },
+          "createdAt": "2026-09-08T15:25:56.405Z",
+          "updatedAt": "2026-09-08T15:25:56.405Z",
+          "round1Qualified": "pending",
+          "round2Qualified": "pending",
+          "round3Qualified": "pending"
+        },
+        "selectedImageId": null,
+        "selectedImage": null,
+        "selectedTopicId": null,
+        "selectedTopic": null,
+        "wheelSpin": null,
+        "timerMode": "idle",
+        "timerStatus": "stopped",
+        "timerDuration": 30,
+        "timerStartTime": null,
+        "timerAccumulatedMs": 0,
+        "timerStopTime": 1788881904512,
+        "timerTotalSeconds": 120,
+        "timerRemainingSeconds": 120,
+        "isTimerRunning": false,
+        "timerStartedAt": null,
+        "timerEndsAt": null,
+        "buzzerTimeSeconds": 120,
+        "buzzerPlayed": false,
+        "isOvertime": false,
+        "overtimeSeconds": 0,
+        "controllerDeviceId": "dev-j3feu26",
+        "controllerDeviceName": "Station C Operator",
+        "claimedByDeviceId": null,
+        "claimedByDeviceName": null,
+        "lastHeartbeat": 1789044556433,
+        "buzzerTimestamp": 1788881904512,
+        "lastBuzzerEventId": "buzzer-1788881904512-station-c"
+      },
+      "station-d": {
+        "id": "station-d",
+        "name": "Station D",
+        "location": "Auditorium Stage",
+        "currentRound": 1,
+        "status": "COMPLETED",
+        "activeParticipantId": null,
+        "activeParticipant": null,
+        "selectedImageId": null,
+        "selectedImage": null,
+        "selectedTopicId": null,
+        "selectedTopic": null,
+        "wheelSpin": null,
+        "timerMode": "stopped",
+        "timerStatus": "stopped",
+        "timerDuration": 30,
+        "timerStartTime": null,
+        "timerAccumulatedMs": 0,
+        "timerStopTime": null,
+        "timerTotalSeconds": 30,
+        "timerRemainingSeconds": 0,
+        "isTimerRunning": false,
+        "timerStartedAt": null,
+        "timerEndsAt": null,
+        "buzzerTimeSeconds": 120,
+        "buzzerPlayed": false,
+        "isOvertime": false,
+        "overtimeSeconds": 0,
+        "controllerDeviceId": null,
+        "controllerDeviceName": null,
+        "claimedByDeviceId": null,
+        "claimedByDeviceName": null,
+        "lastHeartbeat": 0
+      }
     },
     "wheelSpin": null,
-    "buzzerTimestamp": 0
+    "timerStartedAt": null,
+    "timerEndsAt": null,
+    "locationId": "station-c",
+    "timerStatus": "stopped",
+    "timerDuration": 30,
+    "timerStartTime": null,
+    "timerAccumulatedMs": 0,
+    "timerStopTime": 1788881904512,
+    "isOvertime": false,
+    "overtimeSeconds": 0,
+    "buzzerTimestamp": 1788881904512
   }
 }

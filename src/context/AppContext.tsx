@@ -17,6 +17,7 @@ import type {
 } from '../types';
 import { api } from '../lib/api';
 import { soundEngine } from '../lib/audio';
+import { getServerNow, recordServerTimestamp } from '../lib/timeSync';
 
 export interface TakeoverModalInfo {
   stationId: string;
@@ -36,7 +37,7 @@ interface AppContextType {
   setCurrentPage: (page: PageId) => void;
   activeParticipant: Participant | null;
   setActiveParticipant: (p: Participant | null) => void;
-  selectNextParticipant: () => void;
+  selectNextParticipant: (customList?: Participant[]) => void;
   isConnected: boolean;
   soundUnlocked: boolean;
   unlockSound: () => void;
@@ -61,9 +62,20 @@ interface AppContextType {
   // Station Actions
   setStationRound: (stationId: string, round: 1 | 2 | 3) => Promise<void>;
   setStationParticipant: (stationId: string, participantId: string | null) => Promise<void>;
+  updateStationHandler: (stationId: string, data: {
+    handlerName?: string | null;
+    handlerPhone?: string | null;
+    handlerRole?: string | null;
+    handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away';
+    handlerNotes?: string | null;
+    name?: string;
+    location?: string;
+  }) => Promise<void>;
+  pingStation: (stationId: string, senderName?: string, message?: string) => Promise<void>;
   assignStationImage: (stationId: string) => Promise<EventImage>;
-  spinStationTopic: (stationId: string, wheelTopicIds?: string[]) => Promise<{ topic: Topic; startedAt: number; durationMs: number; station?: StationState }>;
+  spinStationTopic: (stationId: string, wheelTopicIds?: string[]) => Promise<{ topic: Topic; targetIndex?: number; wheelTopics?: Topic[]; startedAt: number; durationMs: number; station?: StationState }>;
   completeStationSpin: (stationId: string) => Promise<void>;
+  replaceStationWheelTopic: (stationId: string, usedTopicId: string, replacementTopicId?: string) => Promise<{ success: boolean; station: StationState; activeWheelTopics: Topic[] }>;
   sendStationTimerAction: (stationId: string, payload: {
     action: 'start' | 'pause' | 'stop' | 'stop_with_buzzer' | 'reset' | 'time_up';
     phase?: 'prep' | 'speech';
@@ -84,22 +96,25 @@ interface AppContextType {
   updateParticipant: (id: string, p: Partial<Participant>) => Promise<Participant>;
   deleteParticipant: (id: string) => Promise<void>;
   importParticipants: (list: Partial<Participant>[]) => Promise<number>;
+  batchSetStation: (participantIds: string[], stationId: string, stationName?: string) => Promise<any>;
   // Custom Fields
   addCustomField: (field: Partial<CustomFieldDefinition>) => Promise<CustomFieldDefinition>;
   updateCustomField: (id: string, field: Partial<CustomFieldDefinition>) => Promise<CustomFieldDefinition>;
   deleteCustomField: (id: string) => Promise<void>;
   // Topics
-  addTopic: (topic: string, category?: string) => Promise<Topic>;
+  addTopic: (topic: string, category?: string, topicId?: string) => Promise<Topic>;
   updateTopic: (id: string, updates: Partial<Topic>) => Promise<Topic>;
   deleteTopic: (id: string) => Promise<void>;
-  importTopics: (list: { topic: string; category?: string }[]) => Promise<number>;
+  importTopics: (list: { topic: string; category?: string; topicId?: string }[]) => Promise<number>;
   resetTopicsStatus: () => Promise<void>;
   // Images
-  addImage: (name: string, url: string) => Promise<EventImage>;
+  addImage: (imageIdOrName: string, url: string) => Promise<EventImage>;
+  updateImage: (id: string, updates: Partial<EventImage>) => Promise<EventImage>;
   uploadImages: (payload: {
-    images?: Array<{ name: string; base64: string }>;
+    images?: Array<{ imageId?: string; name?: string; base64: string }>;
     name?: string;
     base64?: string;
+    imageId?: string;
   }) => Promise<{ success: boolean; count: number; images: EventImage[]; allImages: EventImage[] }>;
   deleteImage: (id: string) => Promise<void>;
   resetImagesStatus: () => Promise<void>;
@@ -109,11 +124,29 @@ interface AppContextType {
   saveRound1Result: (res: Omit<Round1Result, 'id'>) => Promise<any>;
   saveRound2Result: (res: Omit<Round2Result, 'id'>) => Promise<any>;
   saveRound3Result: (res: Omit<Round3Result, 'id'>) => Promise<any>;
+  // Qualification
+  setQualification: (
+    participantId: string,
+    round: 1 | 2 | 3,
+    status: 'qualified' | 'disqualified' | 'pending',
+    reason?: string
+  ) => Promise<Participant>;
+  batchSetQualification: (
+    participantIds: string[],
+    round: 1 | 2 | 3,
+    status: 'qualified' | 'disqualified' | 'pending'
+  ) => Promise<Participant[]>;
   // Buzzer & Sound
   triggerBuzzer: (reason?: string, round?: string) => Promise<void>;
   playBuzzerLocal: () => void;
   uploadCustomBuzzer: (audioData: string, fileName?: string) => Promise<void>;
   resetCustomBuzzer: () => Promise<void>;
+  uploadCustomPrepBuzzer: (audioData: string, fileName?: string) => Promise<void>;
+  resetCustomPrepBuzzer: () => Promise<void>;
+  uploadCustomLogo: (logoData: string, fileName?: string) => Promise<void>;
+  resetCustomLogo: () => Promise<void>;
+  uploadInspireLogo: (logoData: string, fileName?: string) => Promise<void>;
+  resetInspireLogo: () => Promise<void>;
   // Live Sync & Timer
   updateLiveSync: (updates: Partial<LiveSyncState>) => Promise<void>;
   sendTimerAction: (payload: {
@@ -198,6 +231,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         localStorage.removeItem('m2m_current_station_id');
       }
     } catch {}
+
+    // Auto-switch active participant to match new station if contestants exist
+    if (id && id !== 'all') {
+      setDb((currDb) => {
+        if (currDb?.participants) {
+          const stationParticipants = currDb.participants.filter((p) => p.stationId === id);
+          if (stationParticipants.length > 0) {
+            setActiveParticipant((currPart) => {
+              if (currPart && currPart.stationId === id) return currPart;
+              return stationParticipants[0];
+            });
+          }
+        }
+        return currDb;
+      });
+    }
   }, []);
 
   const [projectorStationId, setProjectorStationIdState] = useState<string | null>(() => {
@@ -320,8 +369,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const state = await api.getState();
       setDb(state);
-      // If no active participant yet and participants exist, set first active safely
-      setActiveParticipant((current) => current || (state.participants?.[0] ?? null));
+      // If no active participant yet and participants exist, set first active safely (respecting current station)
+      setActiveParticipant((current) => {
+        if (current) return current;
+        if (!state.participants || state.participants.length === 0) return null;
+        if (currentStationId && currentStationId !== 'all') {
+          const stationMatch = state.participants.find((p) => p.stationId === currentStationId);
+          if (stationMatch) return stationMatch;
+        }
+        return state.participants[0] ?? null;
+      });
     } catch (err) {
       console.error('Failed to load initial state:', err);
     } finally {
@@ -478,6 +535,57 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     []
   );
 
+  const updateStationHandler = useCallback(
+    async (
+      stationId: string,
+      data: {
+        handlerName?: string | null;
+        handlerPhone?: string | null;
+        handlerRole?: string | null;
+        handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away';
+        handlerNotes?: string | null;
+        name?: string;
+        location?: string;
+      }
+    ) => {
+      const res = await api.updateStationHandler(stationId, data);
+      setDb((prev) => {
+        if (!prev) return prev;
+        const updatedStations = { ...(prev.stations || {}), [stationId]: res.station };
+        const updatedSettingsStations = (prev.settings.stations || []).map((s) =>
+          s.id === stationId
+            ? {
+                ...s,
+                ...(data.name ? { name: data.name } : {}),
+                ...(data.location ? { location: data.location } : {}),
+                handlerName: data.handlerName || undefined,
+                handlerPhone: data.handlerPhone || undefined,
+                handlerRole: data.handlerRole || undefined,
+                handlerStatus: data.handlerStatus || undefined,
+                handlerNotes: data.handlerNotes || undefined,
+              }
+            : s
+        );
+        return {
+          ...prev,
+          stations: updatedStations,
+          settings: {
+            ...prev.settings,
+            stations: updatedSettingsStations,
+          },
+        };
+      });
+    },
+    []
+  );
+
+  const pingStation = useCallback(
+    async (stationId: string, senderName?: string, message?: string) => {
+      await api.pingStation(stationId, senderName, message);
+    },
+    []
+  );
+
   const assignStationImage = useCallback(
     async (stationId: string) => {
       const station = db?.stations?.[stationId];
@@ -534,6 +642,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
 
+  const replaceStationWheelTopic = useCallback(
+    async (stationId: string, usedTopicId: string, replacementTopicId?: string) => {
+      const res = await api.replaceStationWheelTopic(stationId, usedTopicId, replacementTopicId);
+      setDb((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stations: { ...(prev.stations || {}), [stationId]: res.station },
+        };
+      });
+      return res;
+    },
+    []
+  );
+
   const sendStationTimerAction = useCallback(
     async (
       stationId: string,
@@ -544,20 +667,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         remainingSeconds?: number;
         round?: string;
         endsAt?: number;
+        startedAt?: number;
       }
     ) => {
-      // Immediate local zero-delay buzzer trigger on Stop / Time Up
-      if (payload.action === 'stop' || payload.action === 'stop_with_buzzer' || payload.action === 'time_up') {
+      const serverNow = getServerNow();
+      const finalPayload = {
+        ...payload,
+        startedAt: payload.action === 'start' ? (payload.startedAt || serverNow) : payload.startedAt,
+      };
+
+      // Immediate local zero-delay buzzer trigger ONLY on natural Time Up (Stop button must NOT play buzzer)
+      if (payload.action === 'time_up') {
         const localEventId = `buzzer-${Date.now()}-${stationId}`;
         playBuzzerWithDebounce(localEventId);
       }
 
-      const res = await api.sendStationTimerAction(stationId, payload);
+      // Optimistic local state update for instant zero-lag response
+      if (payload.action === 'start') {
+        setDb((prev) => {
+          if (!prev) return prev;
+          const targetStation = prev.stations?.[stationId];
+          if (!targetStation) return prev;
+          const duration = payload.totalSeconds || targetStation.timerDuration || 120;
+          const rem = typeof payload.remainingSeconds === 'number' ? payload.remainingSeconds : duration;
+          const updated: StationState = {
+            ...targetStation,
+            timerMode: payload.phase || targetStation.timerMode || 'speech',
+            timerDuration: duration,
+            timerTotalSeconds: duration,
+            timerRemainingSeconds: rem,
+            isTimerRunning: true,
+            timerStatus: 'running',
+            timerStartTime: finalPayload.startedAt,
+            timerStartedAt: finalPayload.startedAt,
+            timerAccumulatedMs: 0,
+            timerEndsAt: (finalPayload.startedAt || serverNow) + rem * 1000,
+            timerStopTime: null,
+            status: (payload.phase || targetStation.timerMode) === 'prep' ? 'PREPARING' : 'SPEAKING',
+            buzzerPlayed: false,
+            isOvertime: false,
+            overtimeSeconds: 0,
+          };
+          const stations = { ...(prev.stations || {}), [stationId]: updated };
+          return {
+            ...prev,
+            stations,
+            liveSync: {
+              ...prev.liveSync,
+              timerMode: updated.timerMode,
+              timerStatus: 'running',
+              timerDuration: updated.timerDuration,
+              timerTotalSeconds: updated.timerTotalSeconds,
+              timerRemainingSeconds: updated.timerRemainingSeconds,
+              isTimerRunning: true,
+              timerStartTime: updated.timerStartTime,
+              timerStartedAt: updated.timerStartedAt,
+              timerEndsAt: updated.timerEndsAt,
+              stationStates: stations,
+            },
+          };
+        });
+      }
+
+      const res = await api.sendStationTimerAction(stationId, finalPayload);
+      if (res.serverTime) recordServerTimestamp(res.serverTime);
       setDb((prev) => {
         if (!prev) return prev;
+        const stations = { ...(prev.stations || {}), [stationId]: res.station };
         return {
           ...prev,
-          stations: { ...(prev.stations || {}), [stationId]: res.station },
+          stations,
+          liveSync: {
+            ...prev.liveSync,
+            stationStates: stations,
+          },
         };
       });
     },
@@ -591,8 +774,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     function connectSSE() {
       eventSource = new EventSource('/api/events');
 
-      eventSource.addEventListener('connected', () => {
+      eventSource.addEventListener('connected', (e) => {
         setIsConnected(true);
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload?.serverTime) recordServerTimestamp(payload.serverTime);
+        } catch {
+          // ignore
+        }
+      });
+
+      eventSource.addEventListener('heartbeat', (e) => {
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload?.serverTime) recordServerTimestamp(payload.serverTime);
+        } catch {
+          // ignore
+        }
       });
 
       eventSource.addEventListener('buzzer_trigger', (e) => {
@@ -606,7 +804,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       eventSource.addEventListener('station_updated', (e) => {
         try {
-          const updatedStation: StationState = JSON.parse(e.data);
+          const updatedStation: StationState & { serverTime?: number } = JSON.parse(e.data);
+          if (updatedStation.serverTime) recordServerTimestamp(updatedStation.serverTime);
           setDb((prev) => {
             if (!prev) return prev;
             const stations = { ...(prev.stations || {}), [updatedStation.id]: updatedStation };
@@ -626,7 +825,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       eventSource.addEventListener('stations_updated', (e) => {
         try {
-          const stationList: StationState[] = JSON.parse(e.data);
+          const stationList: (StationState & { serverTime?: number })[] = JSON.parse(e.data);
+          if (stationList[0]?.serverTime) recordServerTimestamp(stationList[0].serverTime);
           setDb((prev) => {
             if (!prev) return prev;
             const stations = { ...(prev.stations || {}) };
@@ -650,6 +850,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       eventSource.addEventListener('live_sync_update', (e) => {
         try {
           const syncData = JSON.parse(e.data);
+          if (syncData.serverTime) recordServerTimestamp(syncData.serverTime);
           setDb((prev) => (prev ? { ...prev, liveSync: syncData } : prev));
         } catch (err) {
           console.error(err);
@@ -659,6 +860,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       eventSource.addEventListener('timer_update', (e) => {
         try {
           const timerData = JSON.parse(e.data);
+          if (timerData.serverTime) recordServerTimestamp(timerData.serverTime);
           setDb((prev) =>
             prev ? { ...prev, liveSync: { ...prev.liveSync, ...timerData } } : prev
           );
@@ -771,6 +973,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       });
 
+      eventSource.addEventListener('qualification_updated', (e) => {
+        try {
+          const { participant } = JSON.parse(e.data);
+          setDb((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              participants: prev.participants.map((p) => (p.id === participant.id ? participant : p)),
+            };
+          });
+          setActiveParticipant((curr) => (curr?.id === participant.id ? participant : curr));
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
+      eventSource.addEventListener('participants_batch_updated', (e) => {
+        try {
+          const { updatedList } = JSON.parse(e.data);
+          const map = new Map(updatedList.map((p: Participant) => [p.id, p]));
+          setDb((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              participants: prev.participants.map((p) => (map.has(p.id) ? (map.get(p.id) as Participant) : p)),
+            };
+          });
+        } catch (err) {
+          console.error(err);
+        }
+      });
+
       eventSource.onerror = () => {
         setIsConnected(false);
         eventSource?.close();
@@ -794,20 +1028,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, []);
 
-  // Next participant selector
-  const selectNextParticipant = useCallback(() => {
-    setDb((currentDb) => {
-      if (!currentDb || currentDb.participants.length === 0) return currentDb;
-      setActiveParticipant((curr) => {
-        const currentIdx = curr
-          ? currentDb.participants.findIndex((p) => p.id === curr.id)
-          : -1;
-        const nextIdx = (currentIdx + 1) % currentDb.participants.length;
-        return currentDb.participants[nextIdx] ?? null;
+  // Next participant selector (round-aware and qualification-gated)
+  const selectNextParticipant = useCallback(
+    (customList?: Participant[]) => {
+      setDb((currentDb) => {
+        if (!currentDb || currentDb.participants.length === 0) return currentDb;
+
+        let candidateList = customList;
+        if (!candidateList) {
+          let pool = currentDb.participants;
+          if (currentPage === 'round2') {
+            // Round 2 is for contestants who qualified in Round 1
+            const r1Qualifiers = currentDb.participants.filter(
+              (p) => p.round1Qualified === 'qualified'
+            );
+            pool = r1Qualifiers.length > 0 ? r1Qualifiers : currentDb.participants;
+          } else if (currentPage === 'round3') {
+            // Round 3 is for contestants who qualified in Round 2
+            const r2Qualifiers = currentDb.participants.filter(
+              (p) => p.round2Qualified === 'qualified'
+            );
+            pool = r2Qualifiers.length > 0 ? r2Qualifiers : currentDb.participants;
+          } else {
+            // Round 1 or other pages: active, non-eliminated contestants
+            const r1Eligible = currentDb.participants.filter(
+              (p) => p.status !== 'eliminated' && p.round1Qualified !== 'disqualified'
+            );
+            pool = r1Eligible.length > 0 ? r1Eligible : currentDb.participants;
+          }
+
+          // If a station is selected, prioritize contestants assigned to this station
+          if (currentStationId) {
+            const stationSpecific = pool.filter((p) => p.stationId === currentStationId);
+            candidateList = stationSpecific.length > 0 ? stationSpecific : pool;
+          } else {
+            candidateList = pool;
+          }
+        }
+
+        if (!candidateList || candidateList.length === 0) return currentDb;
+
+        setActiveParticipant((curr) => {
+          const currentIdx = curr
+            ? candidateList!.findIndex((p) => p.id === curr.id)
+            : -1;
+          const nextIdx = (currentIdx + 1) % candidateList!.length;
+          return candidateList![nextIdx] ?? null;
+        });
+        return currentDb;
       });
-      return currentDb;
-    });
-  }, []);
+    },
+    [currentPage, currentStationId]
+  );
 
   // Custom Buzzer
   const uploadCustomBuzzer = useCallback(async (audioData: string, fileName?: string) => {
@@ -818,6 +1090,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const resetCustomBuzzer = useCallback(async () => {
     const res = await api.resetCustomBuzzer();
     setDb((prev) => (prev ? { ...prev, settings: { ...prev.settings, buzzer: res.buzzer } } : prev));
+  }, []);
+
+  // Custom Preparation Timer Buzzer (30s prep countdown end)
+  const uploadCustomPrepBuzzer = useCallback(async (audioData: string, fileName?: string) => {
+    const res = await api.uploadCustomPrepBuzzer(audioData, fileName);
+    setDb((prev) => (prev ? { ...prev, settings: { ...prev.settings, buzzer: res.buzzer } } : prev));
+  }, []);
+
+  const resetCustomPrepBuzzer = useCallback(async () => {
+    const res = await api.resetCustomPrepBuzzer();
+    setDb((prev) => (prev ? { ...prev, settings: { ...prev.settings, buzzer: res.buzzer } } : prev));
+  }, []);
+
+  // Custom Logo Management
+  const uploadCustomLogo = useCallback(async (logoData: string, fileName?: string) => {
+    const res = await api.uploadCustomLogo(logoData, fileName);
+    setDb((prev) => (prev ? { ...prev, settings: res.settings } : prev));
+  }, []);
+
+  const resetCustomLogo = useCallback(async () => {
+    const res = await api.resetCustomLogo();
+    setDb((prev) => (prev ? { ...prev, settings: res.settings } : prev));
+  }, []);
+
+  // Inspire 2K26 Logo Management
+  const uploadInspireLogo = useCallback(async (logoData: string, fileName?: string) => {
+    const res = await api.uploadInspireLogo(logoData, fileName);
+    setDb((prev) => (prev ? { ...prev, settings: res.settings } : prev));
+  }, []);
+
+  const resetInspireLogo = useCallback(async () => {
+    const res = await api.resetInspireLogo();
+    setDb((prev) => (prev ? { ...prev, settings: res.settings } : prev));
   }, []);
 
   // Synchronized Timer Action
@@ -970,6 +1275,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return res.count;
   }, [reloadState]);
 
+  const batchSetStation = useCallback(
+    async (participantIds: string[], stationId: string, stationName?: string) => {
+      const res = await api.batchSetStation(participantIds, stationId, stationName);
+      setDb((prev) => {
+        if (!prev) return prev;
+        const map = new Map(res.participants.map((p) => [p.id, p]));
+        return {
+          ...prev,
+          participants: prev.participants.map((p) => (map.has(p.id) ? (map.get(p.id) as Participant) : p)),
+        };
+      });
+      return res;
+    },
+    []
+  );
+
   // Custom fields
   const addCustomField = useCallback(async (field: Partial<CustomFieldDefinition>) => {
     const created = await api.addCustomField(field);
@@ -1003,8 +1324,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   // Topics
-  const addTopic = useCallback(async (topic: string, category?: string) => {
-    const created = await api.addTopic({ topic, category });
+  const addTopic = useCallback(async (topic: string, category?: string, topicId?: string) => {
+    const created = await api.addTopic({ topic, category, topicId });
     setDb((prev) => (prev ? { ...prev, topics: [...prev.topics, created] } : prev));
     return created;
   }, []);
@@ -1027,7 +1348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDb((prev) => (prev ? { ...prev, topics: prev.topics.filter((t) => t.id !== id) } : prev));
   }, []);
 
-  const importTopics = useCallback(async (list: { topic: string; category?: string }[]) => {
+  const importTopics = useCallback(async (list: { topic: string; category?: string; topicId?: string }[]) => {
     const res = await api.batchAddTopics(list);
     await reloadState();
     return res.count;
@@ -1039,14 +1360,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [reloadState]);
 
   // Images
-  const addImage = useCallback(async (name: string, url: string) => {
-    const created = await api.addImage({ name, url });
+  const addImage = useCallback(async (imageIdOrName: string, url: string) => {
+    const created = await api.addImage({ imageId: imageIdOrName, name: imageIdOrName, url });
     setDb((prev) => (prev ? { ...prev, images: [...prev.images, created] } : prev));
     return created;
   }, []);
 
+  const updateImage = useCallback(async (id: string, updates: Partial<EventImage>) => {
+    const updated = await api.updateImage(id, updates);
+    setDb((prev) =>
+      prev
+        ? {
+            ...prev,
+            images: prev.images.map((img) => (img.id === id ? updated : img)),
+          }
+        : prev
+    );
+    return updated;
+  }, []);
+
   const uploadImages = useCallback(
-    async (payload: { images?: Array<{ name: string; base64: string }>; name?: string; base64?: string }) => {
+    async (payload: { images?: Array<{ imageId?: string; name?: string; base64: string }>; name?: string; base64?: string; imageId?: string }) => {
       const res = await api.uploadImages(payload);
       setDb((prev) => (prev ? { ...prev, images: res.allImages } : prev));
       return res;
@@ -1089,6 +1423,71 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await reloadState();
     return saved;
   }, [reloadState]);
+
+  // Qualification methods
+  const setQualification = useCallback(
+    async (
+      participantId: string,
+      round: 1 | 2 | 3,
+      status: 'qualified' | 'disqualified' | 'pending',
+      reason?: string
+    ) => {
+      const res = await api.updateQualification({ participantId, round, status, reason });
+      setDb((prev) => {
+        if (!prev) return prev;
+        const updatedParticipants = prev.participants.map((p) =>
+          p.id === participantId ? res.participant : p
+        );
+        const updatedR1 =
+          round === 1
+            ? prev.round1Results.map((r) =>
+                r.participantId === participantId
+                  ? { ...r, qualification: status, qualificationReason: reason }
+                  : r
+              )
+            : prev.round1Results;
+        const updatedR2 =
+          round === 2
+            ? prev.round2Results.map((r) =>
+                r.participantId === participantId
+                  ? { ...r, qualification: status, qualificationReason: reason }
+                  : r
+              )
+            : prev.round2Results;
+        const updatedR3 =
+          round === 3
+            ? prev.round3Results.map((r) =>
+                r.participantId === participantId
+                  ? { ...r, qualification: status, qualificationReason: reason }
+                  : r
+              )
+            : prev.round3Results;
+        return {
+          ...prev,
+          participants: updatedParticipants,
+          round1Results: updatedR1,
+          round2Results: updatedR2,
+          round3Results: updatedR3,
+        };
+      });
+      setActiveParticipant((curr) => (curr?.id === participantId ? res.participant : curr));
+      return res.participant;
+    },
+    []
+  );
+
+  const batchSetQualification = useCallback(
+    async (
+      participantIds: string[],
+      round: 1 | 2 | 3,
+      status: 'qualified' | 'disqualified' | 'pending'
+    ) => {
+      const res = await api.batchUpdateQualification({ participantIds, round, status });
+      await reloadState();
+      return res.participants;
+    },
+    [reloadState]
+  );
 
   // Live Sync
   const updateLiveSync = useCallback(async (updates: Partial<LiveSyncState>) => {
@@ -1144,9 +1543,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         // Station Actions
         setStationRound,
         setStationParticipant,
+        updateStationHandler,
+        pingStation,
         assignStationImage,
         spinStationTopic,
         completeStationSpin,
+        replaceStationWheelTopic,
         sendStationTimerAction,
 
         // Master / Admin
@@ -1159,6 +1561,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateParticipant,
         deleteParticipant,
         importParticipants,
+        batchSetStation,
         addCustomField,
         updateCustomField,
         deleteCustomField,
@@ -1168,6 +1571,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         importTopics,
         resetTopicsStatus,
         addImage,
+        updateImage,
         uploadImages,
         deleteImage,
         resetImagesStatus,
@@ -1175,10 +1579,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveRound1Result,
         saveRound2Result,
         saveRound3Result,
+        setQualification,
+        batchSetQualification,
         triggerBuzzer,
         playBuzzerLocal,
         uploadCustomBuzzer,
         resetCustomBuzzer,
+        uploadCustomPrepBuzzer,
+        resetCustomPrepBuzzer,
+        uploadCustomLogo,
+        resetCustomLogo,
+        uploadInspireLogo,
+        resetInspireLogo,
         updateLiveSync,
         sendTimerAction,
         assignRound1Image,

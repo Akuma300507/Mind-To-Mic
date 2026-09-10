@@ -25,6 +25,7 @@ export const TopicsManager: React.FC = () => {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingTopic, setEditingTopic] = useState<Topic | null>(null);
+  const [topicIdInput, setTopicIdInput] = useState('');
   const [topicText, setTopicText] = useState('');
   const [topicCategory, setTopicCategory] = useState('General');
 
@@ -43,6 +44,7 @@ export const TopicsManager: React.FC = () => {
     if (!db?.topics) return [];
     return db.topics.filter((t) => {
       const matchesSearch =
+        (t.topicId && t.topicId.toLowerCase().includes(searchTerm.toLowerCase())) ||
         t.topic.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (t.category && t.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (t.usedByParticipantName && t.usedByParticipantName.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -56,6 +58,7 @@ export const TopicsManager: React.FC = () => {
 
   const openAddModal = () => {
     setEditingTopic(null);
+    setTopicIdInput(`TOP-${String((db?.topics.length || 0) + 1).padStart(3, '0')}`);
     setTopicText('');
     setTopicCategory('General');
     setShowAddModal(true);
@@ -63,6 +66,7 @@ export const TopicsManager: React.FC = () => {
 
   const openEditModal = (t: Topic) => {
     setEditingTopic(t);
+    setTopicIdInput(t.topicId || t.id);
     setTopicText(t.topic);
     setTopicCategory(t.category || 'General');
     setShowAddModal(true);
@@ -72,13 +76,16 @@ export const TopicsManager: React.FC = () => {
     e.preventDefault();
     if (!topicText.trim()) return;
 
+    const finalTopicId = (topicIdInput.trim() || `TOP-${String((db?.topics.length || 0) + 1).padStart(3, '0')}`).toUpperCase();
+
     if (editingTopic) {
       await updateTopic(editingTopic.id, {
+        topicId: finalTopicId,
         topic: topicText.trim(),
         category: topicCategory.trim(),
       });
     } else {
-      await addTopic(topicText.trim(), topicCategory.trim());
+      await addTopic(topicText.trim(), topicCategory.trim(), finalTopicId);
     }
     setShowAddModal(false);
   };
@@ -240,6 +247,7 @@ export const TopicsManager: React.FC = () => {
             <thead className="bg-slate-950/70 border-b border-slate-800 text-slate-400 font-bold uppercase tracking-wider text-[10px]">
               <tr>
                 <th className="py-3.5 px-4 w-12">#</th>
+                <th className="py-3.5 px-4 w-28">Topic ID</th>
                 <th className="py-3.5 px-4">Topic Statement</th>
                 <th className="py-3.5 px-4">Category</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
@@ -250,7 +258,7 @@ export const TopicsManager: React.FC = () => {
             <tbody className="divide-y divide-slate-800/60">
               {filteredTopics.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     No topics found matching current filters.
                   </td>
                 </tr>
@@ -258,6 +266,11 @@ export const TopicsManager: React.FC = () => {
                 filteredTopics.map((t, index) => (
                   <tr key={t.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">{index + 1}</td>
+                    <td className="py-3.5 px-4">
+                      <span className="font-mono font-bold text-xs text-purple-300 bg-purple-500/10 border border-purple-500/30 px-2 py-0.5 rounded-md">
+                        {t.topicId || t.id}
+                      </span>
+                    </td>
                     <td className="py-3.5 px-4 font-semibold text-white max-w-md">{t.topic}</td>
                     <td className="py-3.5 px-4">
                       <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800 text-[10px] font-bold">
@@ -325,6 +338,23 @@ export const TopicsManager: React.FC = () => {
               {editingTopic ? 'Edit Topic' : 'Add New Speech Topic'}
             </h3>
             <form onSubmit={handleSaveTopic} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Topic ID <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={topicIdInput}
+                  onChange={(e) => setTopicIdInput(e.target.value.toUpperCase())}
+                  placeholder="e.g. TOP-001"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-purple-300 font-mono font-bold focus:border-purple-500 focus:outline-none"
+                />
+                <p className="text-[11px] text-slate-500 mt-1">
+                  This ID is tracked for the participant when spun on the wheel and logged in Results.
+                </p>
+              </div>
+
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
                   Topic Prompt / Question <span className="text-rose-400">*</span>

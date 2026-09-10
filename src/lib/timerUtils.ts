@@ -4,6 +4,7 @@
  */
 
 import type { StationState, LiveSyncState } from '../types';
+import { getServerNow } from './timeSync';
 
 export interface ComputedTimerState {
   phase: 'idle' | 'prep' | 'speech' | 'stopped' | 'time_up';
@@ -30,7 +31,7 @@ export function formatTimeMMSS(totalSeconds: number): string {
 
 export function computeStationTimer(
   station: StationState | LiveSyncState | null | undefined,
-  nowMs: number = Date.now()
+  nowMs: number = getServerNow()
 ): ComputedTimerState {
   if (!station) {
     return {

@@ -9,12 +9,15 @@ import type {
   LiveSyncState,
   StationState,
 } from '../types';
+import { getServerNow, recordServerTimestamp } from './timeSync';
 
 export const api = {
   // Health
   async getHealth() {
     const res = await fetch('/api/health');
-    return res.json();
+    const data = await res.json();
+    if (data?.serverTime) recordServerTimestamp(data.serverTime);
+    return data;
   },
 
   // State
@@ -94,6 +97,34 @@ export const api = {
     return res.json();
   },
 
+  async updateStationHandler(id: string, data: {
+    handlerName?: string | null;
+    handlerPhone?: string | null;
+    handlerRole?: string | null;
+    handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away';
+    handlerNotes?: string | null;
+    name?: string;
+    location?: string;
+  }): Promise<{ success: boolean; station: StationState }> {
+    const res = await fetch(`/api/stations/${id}/handler`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to update station handler');
+    return res.json();
+  },
+
+  async pingStation(id: string, senderName?: string, message?: string): Promise<{ success: boolean; message: string }> {
+    const res = await fetch(`/api/stations/${id}/ping`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ senderName, message }),
+    });
+    if (!res.ok) throw new Error('Failed to ping station');
+    return res.json();
+  },
+
   async setStationParticipant(id: string, participantId: string | null): Promise<{ success: boolean; station: StationState }> {
     const res = await fetch(`/api/stations/${id}/set-participant`, {
       method: 'POST',
@@ -138,6 +169,20 @@ export const api = {
     return res.json();
   },
 
+  async replaceStationWheelTopic(
+    id: string,
+    usedTopicId: string,
+    replacementTopicId?: string
+  ): Promise<{ success: boolean; station: StationState; activeWheelTopics: Topic[] }> {
+    const res = await fetch(`/api/stations/${id}/wheel-replace`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usedTopicId, replacementTopicId }),
+    });
+    if (!res.ok) throw new Error('Failed to replace wheel topic');
+    return res.json();
+  },
+
   async sendStationTimerAction(id: string, payload: {
     action: 'start' | 'pause' | 'stop' | 'stop_with_buzzer' | 'reset' | 'time_up';
     phase?: 'prep' | 'speech';
@@ -145,14 +190,21 @@ export const api = {
     remainingSeconds?: number;
     round?: string;
     endsAt?: number;
-  }): Promise<{ success: boolean; station: StationState }> {
+    startedAt?: number;
+  }): Promise<{ success: boolean; station: StationState; serverTime?: number }> {
+    const finalPayload = {
+      ...payload,
+      startedAt: payload.action === 'start' ? (payload.startedAt || getServerNow()) : payload.startedAt,
+    };
     const res = await fetch(`/api/stations/${id}/timer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(finalPayload),
     });
     if (!res.ok) throw new Error('Failed to send station timer action');
-    return res.json();
+    const data = await res.json();
+    if (data?.serverTime) recordServerTimestamp(data.serverTime);
+    return data;
   },
 
   // Participants
@@ -196,6 +248,16 @@ export const api = {
     return res.json();
   },
 
+  async batchSetStation(participantIds: string[], stationId: string, stationName?: string): Promise<{ success: boolean; count: number; participants: Participant[] }> {
+    const res = await fetch('/api/participants/station/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ participantIds, stationId, stationName }),
+    });
+    if (!res.ok) throw new Error('Failed to batch update participant station');
+    return res.json();
+  },
+
   // Custom Fields
   async getCustomFields(): Promise<CustomFieldDefinition[]> {
     const res = await fetch('/api/custom-fields');
@@ -236,7 +298,7 @@ export const api = {
     return res.json();
   },
 
-  async addTopic(t: { topic: string; category?: string }): Promise<Topic> {
+  async addTopic(t: { topic: string; category?: string; topicId?: string }): Promise<Topic> {
     const res = await fetch('/api/topics', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -261,7 +323,7 @@ export const api = {
     if (!res.ok) throw new Error('Failed to delete topic');
   },
 
-  async batchAddTopics(topics: { topic: string; category?: string }[]): Promise<{ count: number; topics: Topic[] }> {
+  async batchAddTopics(topics: { topic: string; category?: string; topicId?: string }[]): Promise<{ count: number; topics: Topic[] }> {
     const res = await fetch('/api/topics/batch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -282,7 +344,7 @@ export const api = {
     return res.json();
   },
 
-  async addImage(img: { name: string; url: string }): Promise<EventImage> {
+  async addImage(img: { name?: string; imageId?: string; url: string }): Promise<EventImage> {
     const res = await fetch('/api/images', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -292,7 +354,17 @@ export const api = {
     return res.json();
   },
 
-  async uploadImages(payload: { images?: Array<{ name: string; base64: string }>; name?: string; base64?: string }): Promise<{ success: boolean; count: number; images: EventImage[]; allImages: EventImage[] }> {
+  async updateImage(id: string, updates: Partial<EventImage>): Promise<EventImage> {
+    const res = await fetch(`/api/images/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error('Failed to update image');
+    return res.json();
+  },
+
+  async uploadImages(payload: { images?: Array<{ imageId?: string; name?: string; base64: string }>; name?: string; base64?: string; imageId?: string }): Promise<{ success: boolean; count: number; images: EventImage[]; allImages: EventImage[] }> {
     const res = await fetch('/api/images/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -383,6 +455,42 @@ export const api = {
     return res.json();
   },
 
+  // Qualification
+  async updateQualification(payload: {
+    participantId: string;
+    round: 1 | 2 | 3;
+    status: 'qualified' | 'disqualified' | 'pending';
+    reason?: string;
+  }): Promise<{ success: boolean; participant: Participant }> {
+    const res = await fetch('/api/qualification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to update qualification');
+    }
+    return res.json();
+  },
+
+  async batchUpdateQualification(payload: {
+    participantIds: string[];
+    round: 1 | 2 | 3;
+    status: 'qualified' | 'disqualified' | 'pending';
+  }): Promise<{ success: boolean; count: number; participants: Participant[] }> {
+    const res = await fetch('/api/qualification/batch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Failed to batch update qualification');
+    }
+    return res.json();
+  },
+
   // Buzzer Trigger
   async triggerBuzzer(payload: { source?: string; reason?: string; round?: string; participantName?: string }) {
     const res = await fetch('/api/buzzer/trigger', {
@@ -411,13 +519,20 @@ export const api = {
     remainingSeconds?: number;
     round?: string;
     endsAt?: number;
+    startedAt?: number;
   }) {
+    const finalPayload = {
+      ...payload,
+      startedAt: payload.action === 'start' ? (payload.startedAt || getServerNow()) : payload.startedAt,
+    };
     const res = await fetch('/api/timer/action', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(finalPayload),
     });
-    return res.json();
+    const data = await res.json();
+    if (data?.serverTime) recordServerTimestamp(data.serverTime);
+    return data;
   },
 
   // Atomic Round 1 Image Assignment
@@ -471,6 +586,57 @@ export const api = {
   async resetCustomBuzzer() {
     const res = await fetch('/api/buzzer/custom-sound', { method: 'DELETE' });
     if (!res.ok) throw new Error('Failed to reset custom buzzer');
+    return res.json();
+  },
+
+  // Custom 30s Preparation Timer Buzzer Audio
+  async uploadCustomPrepBuzzer(audioData: string, fileName?: string) {
+    const res = await fetch('/api/buzzer/prep-custom-sound', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ audioData, fileName }),
+    });
+    if (!res.ok) throw new Error('Failed to upload prep buzzer audio');
+    return res.json();
+  },
+
+  async resetCustomPrepBuzzer() {
+    const res = await fetch('/api/buzzer/prep-custom-sound', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to reset prep buzzer');
+    return res.json();
+  },
+
+  // Custom Official Logo Management
+  async uploadCustomLogo(logoData: string, fileName?: string) {
+    const res = await fetch('/api/settings/logo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logoData, fileName }),
+    });
+    if (!res.ok) throw new Error('Failed to upload custom logo');
+    return res.json();
+  },
+
+  async resetCustomLogo() {
+    const res = await fetch('/api/settings/logo', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to reset logo');
+    return res.json();
+  },
+
+  // Inspire 2K26 Logo Management
+  async uploadInspireLogo(logoData: string, fileName?: string) {
+    const res = await fetch('/api/settings/inspire-logo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logoData, fileName }),
+    });
+    if (!res.ok) throw new Error('Failed to upload inspire logo');
+    return res.json();
+  },
+
+  async resetInspireLogo() {
+    const res = await fetch('/api/settings/inspire-logo', { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to reset inspire logo');
     return res.json();
   },
 

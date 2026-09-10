@@ -6,16 +6,15 @@ import {
   Trash2,
   CheckCircle2,
   RotateCcw,
-  ExternalLink,
-  Sparkles,
   Upload,
-  FolderOpen,
   FileImage,
   X,
   Loader2,
   Check,
   Laptop,
   Globe,
+  Edit2,
+  Hash,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import type { EventImage } from '../types';
@@ -23,7 +22,7 @@ import type { EventImage } from '../types';
 interface FileUploadItem {
   id: string;
   file: File;
-  name: string;
+  imageId: string;
   preview: string;
   base64: string;
   size: string;
@@ -38,9 +37,13 @@ export const ImagesManager: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addMode, setAddMode] = useState<'laptop' | 'url'>('laptop');
 
-  // URL mode state
-  const [imageName, setImageName] = useState('');
+  // URL mode state: custom imageId instead of title
+  const [urlImageId, setUrlImageId] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+
+  // Editing ID inline
+  const [editingImageId, setEditingImageId] = useState<string | null>(null);
+  const [newImageIdVal, setNewImageIdVal] = useState('');
 
   // Laptop upload state
   const [selectedFiles, setSelectedFiles] = useState<FileUploadItem[]>([]);
@@ -53,23 +56,12 @@ export const ImagesManager: React.FC = () => {
 
   const filteredImages = useMemo(() => {
     return images.filter((img) => {
-      const matchesSearch = img.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const idToTest = (img.imageId || img.name || '').toLowerCase();
+      const matchesSearch = idToTest.includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || img.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [images, searchTerm, statusFilter]);
-
-  // Clean filename to readable title
-  const cleanFileName = (filename: string): string => {
-    const withoutExt = filename.replace(/\.[^/.]+$/, '');
-    return withoutExt
-      .replace(/[-_]+/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .split(' ')
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -91,6 +83,8 @@ export const ImagesManager: React.FC = () => {
     setUploadError(null);
 
     const newItems: FileUploadItem[] = [];
+    const currentTotal = images.length + selectedFiles.length;
+
     for (let i = 0; i < filesList.length; i++) {
       const file = filesList[i];
       if (!file.type.startsWith('image/')) {
@@ -98,10 +92,11 @@ export const ImagesManager: React.FC = () => {
       }
       try {
         const base64 = await readFileAsBase64(file);
+        const autoId = `IMG-${String(currentTotal + i + 1).padStart(3, '0')}`;
         newItems.push({
           id: `f_${Date.now()}_${Math.random().toString(36).substring(2, 6)}_${i}`,
           file,
-          name: cleanFileName(file.name),
+          imageId: autoId,
           preview: base64,
           base64,
           size: formatFileSize(file.size),
@@ -126,9 +121,9 @@ export const ImagesManager: React.FC = () => {
     setSelectedFiles((prev) => prev.filter((f) => f.id !== id));
   };
 
-  const handleUpdateSelectedName = (id: string, newName: string) => {
+  const handleUpdateSelectedImageId = (id: string, newId: string) => {
     setSelectedFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
+      prev.map((f) => (f.id === id ? { ...f, imageId: newId.toUpperCase() } : f))
     );
   };
 
@@ -145,8 +140,9 @@ export const ImagesManager: React.FC = () => {
 
     try {
       const payload = {
-        images: selectedFiles.map((item) => ({
-          name: item.name.trim() || 'Untitled Image',
+        images: selectedFiles.map((item, idx) => ({
+          imageId: item.imageId.trim().toUpperCase() || `IMG-${String(images.length + idx + 1).padStart(3, '0')}`,
+          name: item.imageId.trim().toUpperCase() || `IMG-${String(images.length + idx + 1).padStart(3, '0')}`,
           base64: item.base64,
         })),
       };
@@ -164,12 +160,14 @@ export const ImagesManager: React.FC = () => {
   // Submit Web URL Image
   const handleSaveUrlImage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!imageName.trim() || !imageUrl.trim()) return;
+    if (!imageUrl.trim()) return;
+
+    const finalId = (urlImageId.trim() || `IMG-${String(images.length + 1).padStart(3, '0')}`).toUpperCase();
 
     setIsUploading(true);
     try {
-      await addImage(imageName.trim(), imageUrl.trim());
-      setImageName('');
+      await addImage(finalId, imageUrl.trim());
+      setUrlImageId('');
       setImageUrl('');
       setShowAddModal(false);
     } catch (err: any) {
@@ -177,6 +175,12 @@ export const ImagesManager: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
+  };
+
+  const handleSaveEditId = async (id: string) => {
+    if (!newImageIdVal.trim()) return;
+    await updateImage(id, { imageId: newImageIdVal.trim().toUpperCase() });
+    setEditingImageId(null);
   };
 
   const handleToggleStatus = async (img: EventImage) => {
@@ -195,10 +199,10 @@ export const ImagesManager: React.FC = () => {
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-white font-['Outfit'] flex items-center gap-3">
             <ImageIcon className="w-7 h-7 text-blue-400" />
-            Image Prompt Repository
+            Image Repository (ID-Based)
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            Visual prompts presented to contestants in Round 1 (Image to Speech). Upload from your laptop or add web links.
+            Visual prompts presented in Round 1 (Image to Speech) identified strictly by Image ID (e.g. IMG-001). No titles are revealed to participants.
           </p>
         </div>
 
@@ -225,13 +229,14 @@ export const ImagesManager: React.FC = () => {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-blue-950/50"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload from Laptop</span>
+            <span>Upload Images with IDs</span>
           </button>
 
           {/* Secondary Add via URL button */}
           <button
             onClick={() => {
               setAddMode('url');
+              setUrlImageId(`IMG-${String(images.length + 1).padStart(3, '0')}`);
               setUploadError(null);
               setShowAddModal(true);
             }}
@@ -247,24 +252,24 @@ export const ImagesManager: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Total Images in Pool</div>
+            <div className="text-xs text-slate-400">Total Image IDs in Pool</div>
             <div className="text-2xl font-black text-white font-mono">{total}</div>
           </div>
-          <span className="p-2 rounded-xl bg-blue-500/20 text-blue-300 font-bold text-xs">Gallery</span>
+          <span className="p-2 rounded-xl bg-blue-500/20 text-blue-300 font-bold text-xs">Pool</span>
         </div>
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Available Prompts</div>
+            <div className="text-xs text-slate-400">Available Image IDs</div>
             <div className="text-2xl font-black text-emerald-400 font-mono">{available}</div>
           </div>
           <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-300 font-bold text-xs">Ready</span>
         </div>
         <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl flex items-center justify-between">
           <div>
-            <div className="text-xs text-slate-400">Used in Event</div>
+            <div className="text-xs text-slate-400">Assigned / Used IDs</div>
             <div className="text-2xl font-black text-rose-400 font-mono">{used}</div>
           </div>
-          <span className="p-2 rounded-xl bg-rose-500/20 text-rose-300 font-bold text-xs">Used</span>
+          <span className="p-2 rounded-xl bg-rose-500/20 text-rose-300 font-bold text-xs">Assigned</span>
         </div>
       </div>
 
@@ -274,10 +279,10 @@ export const ImagesManager: React.FC = () => {
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search image prompt title..."
+            placeholder="Search by Image ID (e.g. IMG-001)..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-purple-500"
+            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 focus:outline-none focus:border-blue-500"
           />
         </div>
 
@@ -304,7 +309,7 @@ export const ImagesManager: React.FC = () => {
             <p className="text-xs text-slate-400 max-w-sm mx-auto">
               {searchTerm || statusFilter !== 'all'
                 ? 'Try adjusting your search query or status filter.'
-                : 'Upload images from your laptop or provide image URLs to build the Round 1 prompt library.'}
+                : 'Upload images from your laptop or provide image links and assign each an Image ID.'}
             </p>
           </div>
           <button
@@ -315,22 +320,25 @@ export const ImagesManager: React.FC = () => {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
           >
             <Upload className="w-4 h-4" />
-            <span>Upload Image from Laptop</span>
+            <span>Upload Images with IDs</span>
           </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredImages.map((img) => {
             const isLocalUpload = img.url.startsWith('/uploads/');
+            const currentId = img.imageId || img.name || img.id;
+            const isEditing = editingImageId === img.id;
+
             return (
               <div
                 key={img.id}
-                className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-purple-500/50 transition-all group"
+                className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col justify-between hover:border-blue-500/50 transition-all group"
               >
                 <div className="relative aspect-video bg-slate-950 overflow-hidden">
                   <img
                     src={img.url}
-                    alt={img.name}
+                    alt={currentId}
                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
@@ -341,7 +349,7 @@ export const ImagesManager: React.FC = () => {
                     {isLocalUpload ? (
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-blue-950/90 text-blue-300 border border-blue-700 flex items-center gap-1 backdrop-blur-sm">
                         <Laptop className="w-2.5 h-2.5" />
-                        Laptop
+                        Upload
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-purple-950/90 text-purple-300 border border-purple-700 flex items-center gap-1 backdrop-blur-sm">
@@ -362,21 +370,70 @@ export const ImagesManager: React.FC = () => {
                 </div>
 
                 <div className="p-4 space-y-3">
-                  <h4 className="font-bold text-white text-sm font-['Outfit'] truncate" title={img.name}>
-                    {img.name}
-                  </h4>
+                  {/* Image ID Display and Inline Edit */}
+                  <div>
+                    {isEditing ? (
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={newImageIdVal}
+                          onChange={(e) => setNewImageIdVal(e.target.value.toUpperCase())}
+                          className="flex-1 px-2 py-1 text-xs font-mono font-bold bg-slate-950 border border-blue-500 rounded text-blue-300 focus:outline-none"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveEditId(img.id)}
+                          className="p-1 rounded bg-blue-600 text-white hover:bg-blue-500"
+                          title="Save ID"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setEditingImageId(null)}
+                          className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white"
+                          title="Cancel"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/30 font-mono font-black text-blue-300 text-xs tracking-wider">
+                            <Hash className="w-3 h-3 text-blue-400" />
+                            {currentId}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setEditingImageId(img.id);
+                            setNewImageIdVal(currentId);
+                          }}
+                          className="p-1 text-slate-400 hover:text-blue-300 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Edit Image ID"
+                        >
+                          <Edit2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                    {img.usedByParticipantName && (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Assigned to: <span className="text-amber-300 font-semibold">{img.usedByParticipantName}</span>
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs">
                     <button
                       onClick={() => handleToggleStatus(img)}
-                      className="text-purple-400 hover:text-purple-300 font-semibold text-[11px]"
+                      className="text-blue-400 hover:text-blue-300 font-semibold text-[11px]"
                     >
                       Mark as {img.status === 'available' ? 'Used' : 'Available'}
                     </button>
 
                     <button
                       onClick={() => {
-                        if (confirm(`Delete image prompt "${img.name}"?`)) deleteImage(img.id);
+                        if (confirm(`Delete image [${currentId}]?`)) deleteImage(img.id);
                       }}
                       className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800"
                       title="Delete image"
@@ -394,12 +451,12 @@ export const ImagesManager: React.FC = () => {
       {/* Add / Upload Image Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-purple-500/30 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-slate-900 border border-blue-500/30 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h3 className="text-lg font-bold text-white font-['Outfit'] flex items-center gap-2">
                 <ImageIcon className="w-5 h-5 text-blue-400" />
-                Add Image Prompts
+                Add Images with Custom IDs
               </h3>
               <button
                 onClick={() => {
@@ -434,6 +491,7 @@ export const ImagesManager: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setAddMode('url');
+                  setUrlImageId(`IMG-${String(images.length + 1).padStart(3, '0')}`);
                   setUploadError(null);
                 }}
                 className={`flex items-center justify-center gap-2 py-2 rounded-lg transition-all ${
@@ -494,16 +552,16 @@ export const ImagesManager: React.FC = () => {
                       Click to browse your laptop or drag & drop images
                     </p>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Supports JPG, PNG, WEBP, GIF (select multiple files at once)
+                      Supports JPG, PNG, WEBP, GIF (each image receives an editable Image ID)
                     </p>
                   </div>
                 </div>
 
-                {/* Selected Files List & Previews */}
+                {/* Selected Files List & Previews with Image ID input */}
                 {selectedFiles.length > 0 && (
                   <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                     <div className="flex items-center justify-between text-xs text-slate-400 font-semibold px-1">
-                      <span>Ready to upload ({selectedFiles.length} images)</span>
+                      <span>Ready to upload ({selectedFiles.length} images) — Assign IDs:</span>
                       <button
                         type="button"
                         onClick={() => setSelectedFiles([])}
@@ -524,14 +582,17 @@ export const ImagesManager: React.FC = () => {
                           className="w-14 h-10 object-cover rounded-lg border border-slate-800 flex-shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <input
-                            type="text"
-                            value={item.name}
-                            onChange={(e) => handleUpdateSelectedName(item.id, e.target.value)}
-                            placeholder="Image Title / Prompt Topic"
-                            className="w-full text-xs font-bold text-white bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
-                          />
-                          <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[11px] text-slate-400 font-mono">ID:</span>
+                            <input
+                              type="text"
+                              value={item.imageId}
+                              onChange={(e) => handleUpdateSelectedImageId(item.id, e.target.value)}
+                              placeholder="e.g. IMG-001"
+                              className="w-full text-xs font-mono font-bold text-blue-300 bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-1 focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">
                             {item.size} • {item.file.name}
                           </span>
                         </div>
@@ -586,16 +647,22 @@ export const ImagesManager: React.FC = () => {
               <form onSubmit={handleSaveUrlImage} className="space-y-4 text-xs">
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">
-                    Image Title / Topic <span className="text-rose-400">*</span>
+                    Image ID <span className="text-rose-400">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
-                    value={imageName}
-                    onChange={(e) => setImageName(e.target.value)}
-                    placeholder="e.g. Solitary Climber on Glacier Peak"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
-                  />
+                  <div className="relative">
+                    <Hash className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={urlImageId}
+                      onChange={(e) => setUrlImageId(e.target.value.toUpperCase())}
+                      placeholder="e.g. IMG-001 or PHOTO-A"
+                      className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    This ID will be randomly assigned to participants and tracked in the Results table.
+                  </p>
                 </div>
 
                 <div>
@@ -636,7 +703,7 @@ export const ImagesManager: React.FC = () => {
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold disabled:opacity-40"
+                    className="flex items-center gap-2 px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold disabled:opacity-40"
                   >
                     {isUploading ? (
                       <>
@@ -644,7 +711,7 @@ export const ImagesManager: React.FC = () => {
                         <span>Saving...</span>
                       </>
                     ) : (
-                      <span>Save Web Image</span>
+                      <span>Save Image with ID</span>
                     )}
                   </button>
                 </div>

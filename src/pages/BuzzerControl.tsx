@@ -11,6 +11,7 @@ import {
   Check,
   QrCode,
   ExternalLink,
+  Clock,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { soundEngine } from '../lib/audio';
@@ -307,6 +308,100 @@ export const BuzzerControl: React.FC = () => {
               </a>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Stage Audio Cues & Buzzer Sequence Preview */}
+      <div className="bg-slate-900/90 border border-purple-900/40 p-6 sm:p-8 rounded-3xl shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-4">
+          <div>
+            <h3 className="text-lg font-black text-white font-['Outfit'] flex items-center gap-2">
+              <Volume2 className="w-5 h-5 text-purple-400" />
+              <span>Stage Audio Cues & Timer Buzzer Sequence</span>
+            </h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Preview the 3 distinct stage sound cues and verify the silent manual stop behavior.
+            </p>
+          </div>
+          <span className="px-3 py-1 rounded-full bg-purple-950/80 text-purple-300 border border-purple-800 text-[10px] font-mono font-bold self-start sm:self-auto">
+            LIVE AUDIO ENGINE
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Cue 1: Prep Over Buzzer */}
+          <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-amber-400">
+                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-mono font-black">
+                  1
+                </span>
+                <span>Prep Time Over Buzzer</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Distinct energetic dual-tone buzzer sound when the preparation countdown reaches zero.
+              </p>
+            </div>
+            <button
+              onClick={() => soundEngine.playPrepOverBuzzer(volume)}
+              className="w-full py-2 px-3 rounded-xl bg-amber-950/60 hover:bg-amber-900/80 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Test Prep Buzzer</span>
+            </button>
+          </div>
+
+          {/* Cue 2: Warning Hint Tick */}
+          <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-400">
+                <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-300 flex items-center justify-center text-[10px] font-mono font-black">
+                  2
+                </span>
+                <span>Warning Countdown Tick</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Small audible clock tick giving the speaker a clear hint that time is about to finish (last 10 seconds).
+              </p>
+            </div>
+            <button
+              onClick={() => soundEngine.playWarningTick(volume)}
+              className="w-full py-2 px-3 rounded-xl bg-blue-950/60 hover:bg-blue-900/80 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Test Warning Tick</span>
+            </button>
+          </div>
+
+          {/* Cue 3: Time Up Finish Buzzer */}
+          <div className="bg-slate-950/70 border border-slate-800 p-4 rounded-2xl flex flex-col justify-between space-y-3">
+            <div className="space-y-1">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-rose-400">
+                <span className="w-5 h-5 rounded-full bg-rose-500/20 text-rose-300 flex items-center justify-center text-[10px] font-mono font-black">
+                  3
+                </span>
+                <span>Time Up Finish Buzzer</span>
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Authoritative full-volume buzzer blast triggered when the speech time limit expires.
+              </p>
+            </div>
+            <button
+              onClick={() => handleTestSpecificSound(selectedSound)}
+              className="w-full py-2 px-3 rounded-xl bg-rose-950/60 hover:bg-rose-900/80 text-rose-200 border border-rose-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Test Finish Buzzer</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Note on Manual Stop */}
+        <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center gap-3 text-xs text-slate-300">
+          <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>
+            <strong>Manual Stop Action:</strong> Completely silent. No buzzer sound is played when clicking the STOP button on any stage or station.
+          </span>
         </div>
       </div>
     </div>

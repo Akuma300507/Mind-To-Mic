@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { soundEngine } from '../../lib/audio';
 import { useApp } from '../../context/AppContext';
+import { getServerNow } from '../../lib/timeSync';
 
 export type TimerPhase = 'idle' | 'prep' | 'speech' | 'stopped' | 'time_up';
 
@@ -42,6 +43,7 @@ export const Timer: React.FC<TimerProps> = ({
   onPhaseChange,
 }) => {
   const {
+    db,
     triggerBuzzer,
     updateLiveSync,
     sendTimerAction,
@@ -53,6 +55,13 @@ export const Timer: React.FC<TimerProps> = ({
     unlockSound,
     playBuzzerLocal,
   } = useApp();
+
+  const playCurrentPrepBuzzer = useCallback(() => {
+    const prepSound = db?.settings?.buzzer?.prepSound || 'dual_alert';
+    const prepVol = db?.settings?.buzzer?.prepVolume ?? 85;
+    const customUrl = db?.settings?.buzzer?.prepCustomAudioUrl;
+    soundEngine.playPrepOverBuzzer(prepSound, prepVol, customUrl);
+  }, [db?.settings?.buzzer?.prepSound, db?.settings?.buzzer?.prepVolume, db?.settings?.buzzer?.prepCustomAudioUrl]);
 
   const [phase, setPhase] = useState<TimerPhase>('idle');
   const [isRunning, setIsRunning] = useState(false);
@@ -75,6 +84,7 @@ export const Timer: React.FC<TimerProps> = ({
   const overtimeStartTimestampRef = useRef<number | null>(null);
   const pausedTimeRemainingRef = useRef<number>(remainingSeconds);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTickedSecondRef = useRef<number | null>(null);
 
   // Synchronize phase with parent
   useEffect(() => {
@@ -101,12 +111,12 @@ export const Timer: React.FC<TimerProps> = ({
   // Helper for overtime ticker (counts UP after limit is reached)
   const startOvertimeTicker = useCallback(() => {
     clearIntervalSafe();
-    const overStart = Date.now();
+    const overStart = getServerNow();
     overtimeStartTimestampRef.current = overStart;
 
     timerIntervalRef.current = setInterval(() => {
       if (!overtimeStartTimestampRef.current) return;
-      const elapsed = Math.floor((Date.now() - overtimeStartTimestampRef.current) / 1000);
+      const elapsed = Math.floor((getServerNow() - overtimeStartTimestampRef.current) / 1000);
       setOvertimeSeconds(elapsed);
     }, 250);
   }, [clearIntervalSafe]);
@@ -118,25 +128,32 @@ export const Timer: React.FC<TimerProps> = ({
   const startTicker = useCallback(
     (targetDurationSeconds: number, tickerPhase: 'prep' | 'speech') => {
       clearIntervalSafe();
-      const now = Date.now();
+      const now = getServerNow();
       phaseEndTimestampRef.current = now + targetDurationSeconds * 1000;
+      lastTickedSecondRef.current = null;
 
       timerIntervalRef.current = setInterval(() => {
         if (!phaseEndTimestampRef.current) return;
-        const diff = Math.max(0, Math.ceil((phaseEndTimestampRef.current - Date.now()) / 1000));
+        const diff = Math.max(0, Math.ceil((phaseEndTimestampRef.current - getServerNow()) / 1000));
         setRemainingSeconds(diff);
 
-        // Warning tick at 5, 4, 3, 2, 1
-        if (diff <= 5 && diff > 0) {
-          soundEngine.playWarningTick(50);
+        // Sound 2: Small audible tick sound to give hint that time is going to finish
+        // Plays once per second in speech phase during the final 10 seconds (10..1)
+        if (tickerPhase === 'speech' && diff <= 10 && diff > 0) {
+          if (lastTickedSecondRef.current !== diff) {
+            lastTickedSecondRef.current = diff;
+            soundEngine.playWarningTick(75);
+          }
         }
 
         if (diff <= 0) {
           clearIntervalSafe();
           if (tickerPhase === 'prep') {
+            // Sound 1: Buzzer sound when the prep time is over
+            playCurrentPrepBuzzer();
             transitionToSpeechRef.current();
           } else {
-            // Speech phase limit reached, enter overtime
+            // Sound 3: Finish buzzer sound after speech time limit is reached
             if (buzzerEnabled) {
               triggerBuzzer('Time Limit Reached', roundName);
             }
@@ -150,7 +167,7 @@ export const Timer: React.FC<TimerProps> = ({
             startOvertimeTicker();
           }
         }
-      }, 200);
+      }, 100);
     },
     [clearIntervalSafe, buzzerEnabled, triggerBuzzer, roundName, sendTimerAction, sendStationTimerAction, currentStationId, startOvertimeTicker]
   );
@@ -159,7 +176,8 @@ export const Timer: React.FC<TimerProps> = ({
   const handleTransitionToSpeech = useCallback(() => {
     unlockSound();
     clearIntervalSafe();
-    soundEngine.playPrepEndChime();
+    // Sound 1: Buzzer sound when prep time is over
+    playCurrentPrepBuzzer();
 
     setPhase('speech');
     setTotalSecondsForPhase(speechDurationSeconds);
@@ -203,7 +221,8 @@ export const Timer: React.FC<TimerProps> = ({
     if (isRunning) return;
 
     if (phase === 'idle') {
-      startTimeRef.current = new Date().toISOString();
+      const startedAt = getServerNow();
+      startTimeRef.current = new Date(startedAt).toISOString();
       if (hasPrepPhase) {
         setPhase('prep');
         setTotalSecondsForPhase(prepDurationSeconds);
@@ -215,6 +234,7 @@ export const Timer: React.FC<TimerProps> = ({
           totalSeconds: prepDurationSeconds,
           remainingSeconds: prepDurationSeconds,
           round: roundName,
+          startedAt,
         });
         if (currentStationId) {
           sendStationTimerAction(currentStationId, {
@@ -222,12 +242,13 @@ export const Timer: React.FC<TimerProps> = ({
             phase: 'prep',
             totalSeconds: prepDurationSeconds,
             remainingSeconds: prepDurationSeconds,
+            startedAt,
           }).catch(() => {});
         }
         startTicker(prepDurationSeconds, 'prep');
       } else {
         setPhase('speech');
-        speechStartTimeRef.current = Date.now();
+        speechStartTimeRef.current = startedAt;
         setTotalSecondsForPhase(speechDurationSeconds);
         setRemainingSeconds(speechDurationSeconds);
         setIsRunning(true);
@@ -237,6 +258,7 @@ export const Timer: React.FC<TimerProps> = ({
           totalSeconds: speechDurationSeconds,
           remainingSeconds: speechDurationSeconds,
           round: roundName,
+          startedAt,
         });
         if (currentStationId) {
           sendStationTimerAction(currentStationId, {
@@ -244,12 +266,14 @@ export const Timer: React.FC<TimerProps> = ({
             phase: 'speech',
             totalSeconds: speechDurationSeconds,
             remainingSeconds: speechDurationSeconds,
+            startedAt,
           }).catch(() => {});
         }
         startTicker(speechDurationSeconds, 'speech');
       }
     } else if (phase === 'prep' || phase === 'speech') {
       // Resume from pause
+      const startedAt = getServerNow();
       setIsRunning(true);
       sendTimerAction({
         action: 'start',
@@ -257,6 +281,7 @@ export const Timer: React.FC<TimerProps> = ({
         totalSeconds: totalSecondsForPhase,
         remainingSeconds: pausedTimeRemainingRef.current,
         round: roundName,
+        startedAt,
       });
       if (currentStationId) {
         sendStationTimerAction(currentStationId, {
@@ -264,6 +289,7 @@ export const Timer: React.FC<TimerProps> = ({
           phase,
           totalSeconds: totalSecondsForPhase,
           remainingSeconds: pausedTimeRemainingRef.current,
+          startedAt,
         }).catch(() => {});
       }
       startTicker(pausedTimeRemainingRef.current, phase as 'prep' | 'speech');
@@ -301,15 +327,15 @@ export const Timer: React.FC<TimerProps> = ({
   }, [isRunning, handlePause, handleStart]);
 
   // STOP action (organizer manual stop before time runs out)
+  // Note: Per requirements, NO buzzer sound plays when clicking STOP
   const handleStop = useCallback(() => {
     if (phase === 'idle' || phase === 'stopped') return;
 
     clearIntervalSafe();
     setIsRunning(false);
     setPhase('stopped');
-    if (buzzerEnabled) {
-      playBuzzerLocal();
-    }
+    // Deliberately no buzzer sound on manual stop
+
     sendTimerAction({
       action: 'stop',
       phase: 'stopped',
@@ -342,7 +368,7 @@ export const Timer: React.FC<TimerProps> = ({
       startTime: startTimeRef.current || new Date().toISOString(),
       endTime,
     });
-  }, [phase, clearIntervalSafe, speechDurationSeconds, remainingSeconds, isOvertime, overtimeSeconds, onFinish, hasPrepPhase, prepDurationSeconds, sendTimerAction, sendStationTimerAction, currentStationId, roundName, buzzerEnabled, playBuzzerLocal]);
+  }, [phase, clearIntervalSafe, speechDurationSeconds, remainingSeconds, isOvertime, overtimeSeconds, onFinish, hasPrepPhase, prepDurationSeconds, sendTimerAction, sendStationTimerAction, currentStationId, roundName]);
 
   // RESET action
   const executeReset = useCallback(() => {

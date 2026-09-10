@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Mic,
   Brain,
   Users,
   Image as ImageIcon,
@@ -16,6 +15,7 @@ import {
   Tv,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { MindToMicLogo } from '../components/common/MindToMicLogo';
 
 export const Dashboard: React.FC = () => {
   const { db, setCurrentPage, activeParticipant, selectNextParticipant, triggerBuzzer } = useApp();
@@ -46,13 +46,13 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 border border-purple-500/30 text-purple-300 text-xs font-bold uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-              Annual College Oratory Championship
+              Annual Oratory Championship
             </div>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-600/40 border border-purple-400/30 flex items-center justify-center text-purple-300 shadow-inner">
-                <Mic className="w-6 h-6" />
+              <div className="h-14 px-2.5 min-w-[56px] rounded-2xl bg-slate-950 border border-purple-500/50 flex items-center justify-center shadow-lg shadow-purple-950/60">
+                <MindToMicLogo size={42} variant="emblem" showGlow={false} />
               </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white font-['Outfit'] tracking-tight">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 font-['Outfit'] tracking-tight">
                 {db?.settings.event.name || 'MIND TO MIC'}
               </h1>
             </div>
@@ -79,7 +79,11 @@ export const Dashboard: React.FC = () => {
                 <h3 className="text-lg font-extrabold text-white font-['Outfit'] truncate">
                   {activeParticipant.name}
                 </h3>
-                <p className="text-xs text-slate-400 truncate">{activeParticipant.college}</p>
+                {(activeParticipant.mobile || activeParticipant.phone) && (
+                  <p className="text-xs text-slate-400 truncate font-mono">
+                    {activeParticipant.mobile || activeParticipant.phone}
+                  </p>
+                )}
                 <div className="mt-3 flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-900/60 text-purple-200 border border-purple-700/50">
                     {activeParticipant.participantNumber}
@@ -273,7 +277,7 @@ export const Dashboard: React.FC = () => {
                 Participant Management
               </h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Register contestants, edit profiles, search, filter, and customize dynamic fields for college, class, or slots.
+                Register contestants, edit profiles, search, filter, and customize dynamic fields for contestant data.
               </p>
             </div>
             <div className="mt-6 flex items-center justify-between pt-4 border-t border-slate-800 text-xs font-bold text-indigo-400 group-hover:text-indigo-300">

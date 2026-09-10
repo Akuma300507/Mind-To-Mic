@@ -1,5 +1,7 @@
 export type RoundStatus = 'pending' | 'ready' | 'in_progress' | 'completed' | 'completed_early' | 'time_up' | 'cancelled';
 
+export type QualificationStatus = 'pending' | 'qualified' | 'disqualified';
+
 export type CustomFieldType = 'text' | 'number' | 'date' | 'dropdown' | 'checkbox';
 
 export interface CustomFieldDefinition {
@@ -16,12 +18,20 @@ export interface Participant {
   id: string;
   participantNumber: string; // e.g., P-101
   name: string;
-  college: string;
-  department: string;
-  status: 'registered' | 'checked_in' | 'active' | 'eliminated' | 'completed';
+  mobile?: string;
+  phone?: string;
+  stationId?: string; // e.g., 'station-a', 'station-b'
+  stationName?: string; // e.g., 'Station A'
+  status: 'registered' | 'checked_in' | 'active' | 'eliminated' | 'completed' | 'qualified' | 'disqualified';
   round1Status: RoundStatus;
   round2Status: RoundStatus;
   round3Status: RoundStatus;
+  round1Qualified?: QualificationStatus;
+  round2Qualified?: QualificationStatus;
+  round3Qualified?: QualificationStatus;
+  qualificationReason?: string;
+  round1ImageId?: string; // Noted Image ID for Participant in Round 1
+  round2TopicId?: string; // Noted Topic ID for Participant in Round 2
   customData: Record<string, any>;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +39,7 @@ export interface Participant {
 
 export interface Topic {
   id: string;
+  topicId?: string; // e.g., 'TOP-001' or custom ID
   topic: string;
   category?: string;
   status: 'available' | 'used';
@@ -39,6 +50,7 @@ export interface Topic {
 
 export interface EventImage {
   id: string;
+  imageId?: string; // e.g., 'IMG-001' or custom ID
   name: string;
   url: string;
   status: 'available' | 'used';
@@ -50,8 +62,10 @@ export interface EventImage {
 export interface Round1Result {
   id: string;
   participantId: string;
+  participantNumber?: string;
   participantName: string;
-  college: string;
+  mobile?: string;
+  phone?: string;
   imageId: string;
   imageName: string;
   imageUrl: string;
@@ -61,35 +75,46 @@ export interface Round1Result {
   startTime: string;
   endTime: string;
   status: RoundStatus;
+  qualification?: QualificationStatus;
+  qualificationReason?: string;
   notes?: string;
 }
 
 export interface Round2Result {
   id: string;
   participantId: string;
+  participantNumber?: string;
   participantName: string;
-  college: string;
+  mobile?: string;
+  phone?: string;
   topicId: string;
   topic: string;
+  topicText?: string;
   prepDurationSeconds: number;
   speechDurationSeconds: number;
   targetSpeechDurationSeconds: number;
   startTime: string;
   endTime: string;
   status: RoundStatus;
+  qualification?: QualificationStatus;
+  qualificationReason?: string;
   notes?: string;
 }
 
 export interface Round3Result {
   id: string;
   participantId: string;
+  participantNumber?: string;
   participantName: string;
-  college: string;
+  mobile?: string;
+  phone?: string;
   speechDurationSeconds: number;
   targetSpeechDurationSeconds: number;
   startTime: string;
   endTime: string;
   status: RoundStatus;
+  qualification?: QualificationStatus;
+  qualificationReason?: string;
   notes?: string;
 }
 
@@ -97,6 +122,11 @@ export interface EventStation {
   id: string;
   name: string;
   location: string;
+  handlerName?: string;
+  handlerPhone?: string;
+  handlerRole?: string;
+  handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away';
+  handlerNotes?: string;
 }
 
 export interface EventSettings {
@@ -104,6 +134,10 @@ export interface EventSettings {
     name: string;
     tagline: string;
     logoText: string;
+    customLogoUrl?: string;
+    customLogoName?: string;
+    inspireLogoUrl?: string;
+    inspireLogoName?: string;
   };
   round1: {
     prepEnabled: boolean; // default true
@@ -137,6 +171,12 @@ export interface EventSettings {
     customAudioUrl?: string; // base64 or audio URL
     customAudioName?: string;
     autoBuzzerOnZero?: boolean;
+
+    // Preparation countdown buzzer (played after 30s prep time)
+    prepSound?: 'dual_alert' | 'staccato' | 'chime' | 'horn' | 'klaxon' | 'custom';
+    prepVolume?: number; // 0 - 100
+    prepCustomAudioUrl?: string;
+    prepCustomAudioName?: string;
   };
   stations?: EventStation[];
 }
@@ -189,8 +229,9 @@ export interface StationState {
   selectedTopic?: Topic | null;
   pendingTopic?: Topic | null;
 
-  // Round 2 Wheel Animation
+  // Round 2 Wheel Animation & Slot State
   wheelSpin: StationWheelSpin | null;
+  activeWheelTopics?: Topic[];
 
   // Robust Shared Backend Timers
   timerMode: 'idle' | 'prep' | 'speech' | 'stopped' | 'time_up';
@@ -221,6 +262,13 @@ export interface StationState {
   controllerDeviceId?: string | null;
   controllerDeviceName?: string | null;
   lastHeartbeat?: number;
+
+  // Station Handler (volunteer, evaluator, stage lead)
+  handlerName?: string | null;
+  handlerPhone?: string | null;
+  handlerRole?: string | null;
+  handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away';
+  handlerNotes?: string | null;
 }
 
 export interface LiveSyncState {
@@ -247,6 +295,7 @@ export interface LiveSyncState {
     mediaUrl?: string;
     id?: string;
     category?: string;
+    rotation?: number;
   };
   wheelSpin?: {
     isSpinning: boolean;

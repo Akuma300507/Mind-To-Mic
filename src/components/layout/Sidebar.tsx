@@ -16,6 +16,7 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { MindToMicLogo } from '../common/MindToMicLogo';
 import type { PageId } from '../../types';
 
 interface NavItem {
@@ -48,6 +49,11 @@ export const Sidebar: React.FC = () => {
 
   return (
     <aside className="w-64 bg-slate-900/95 border-r border-purple-900/30 flex flex-col flex-shrink-0 h-[calc(100vh-4rem)] overflow-y-auto custom-scrollbar">
+      {/* Event Branding Header */}
+      <div className="p-4 pb-2 flex flex-col items-center justify-center text-center border-b border-purple-900/20">
+        <MindToMicLogo size={52} variant="compact" showGlow={false} />
+      </div>
+
       {/* Event Progress Summary Pill */}
       <div className="p-4 border-b border-purple-900/20">
         <div className="bg-gradient-to-r from-purple-950/80 to-slate-900 p-3 rounded-xl border border-purple-800/30">

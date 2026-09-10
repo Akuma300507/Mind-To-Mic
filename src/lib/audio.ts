@@ -201,7 +201,227 @@ class SoundEngine {
     osc.stop(start + duration);
   }
 
-  // Pleasant chime when Preparation timer ends and speech begins
+  // 1. Distinct buzzer sound when Preparation timer ends
+  public playPrepOverBuzzer(
+    sound: 'dual_alert' | 'staccato' | 'chime' | 'horn' | 'klaxon' | 'custom' = 'dual_alert',
+    volumePercent: number = 85,
+    customAudioUrl?: string
+  ) {
+    this.initContext();
+    const vol = Math.max(0, Math.min(1, volumePercent / 100));
+
+    if (sound === 'custom' && customAudioUrl) {
+      try {
+        const audio = new Audio(customAudioUrl);
+        audio.volume = vol;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn('Custom prep audio playback failed, falling back to synthesizer:', err);
+            if (this.ctx) {
+              this.playDualAlert(this.ctx.currentTime, vol);
+            }
+          });
+        }
+        return;
+      } catch (err) {
+        console.warn('Error loading custom prep audio:', err);
+      }
+    }
+
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    switch (sound) {
+      case 'staccato':
+        this.playPrepStaccato(now, vol);
+        break;
+      case 'chime':
+        this.playPrepChime(now, vol);
+        break;
+      case 'horn':
+        this.playPrepShortHorn(now, vol);
+        break;
+      case 'klaxon':
+        this.playPrepKlaxon(now, vol);
+        break;
+      case 'dual_alert':
+      default:
+        this.playDualAlert(now, vol);
+        break;
+    }
+  }
+
+  // Dual-stage energetic alert buzzer (two quick punchy buzzes)
+  private playDualAlert(now: number, vol: number) {
+    if (!this.ctx) return;
+    const pulses = [
+      { startOffset: 0, duration: 0.14, freq: 500 },
+      { startOffset: 0.18, duration: 0.28, freq: 660 },
+    ];
+
+    pulses.forEach(({ startOffset, duration, freq }) => {
+      if (!this.ctx) return;
+      const startTime = now + startOffset;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, startTime);
+      osc.frequency.linearRampToValueAtTime(freq * 1.08, startTime + duration);
+
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(vol * 0.45, startTime + 0.02);
+      gain.gain.setValueAtTime(vol * 0.45, startTime + duration - 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.01);
+    });
+  }
+
+  // Triple crisp staccato pulses
+  private playPrepStaccato(now: number, vol: number) {
+    if (!this.ctx) return;
+    const pulses = [0, 0.12, 0.24];
+    pulses.forEach((offset, idx) => {
+      if (!this.ctx) return;
+      const t = now + offset;
+      const freq = idx === 2 ? 880 : 700;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, t);
+
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(vol * 0.4, t + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(t);
+      osc.stop(t + 0.1);
+    });
+  }
+
+  // Harmonic stage chime / gong
+  private playPrepChime(now: number, vol: number) {
+    if (!this.ctx) return;
+    const freqs = [528, 1056, 1584];
+    freqs.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+
+      const amp = (vol * 0.35) / (idx + 1);
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(amp, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 1.25);
+    });
+  }
+
+  // Short punchy stadium blast
+  private playPrepShortHorn(now: number, vol: number) {
+    if (!this.ctx) return;
+    const freqs = [220, 277, 330];
+    freqs.forEach((freq) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.linearRampToValueAtTime(freq * 1.02, now + 0.45);
+
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(vol * 0.38, now + 0.03);
+      gain.gain.setValueAtTime(vol * 0.38, now + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.52);
+    });
+  }
+
+  // Electronic warning klaxon
+  private playPrepKlaxon(now: number, vol: number) {
+    if (!this.ctx) return;
+    const steps = [
+      { start: now, dur: 0.16, freq: 880 },
+      { start: now + 0.18, dur: 0.28, freq: 1100 },
+    ];
+    steps.forEach(({ start, dur, freq }) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, start);
+
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(vol * 0.3, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + dur);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start(start);
+      osc.stop(start + dur + 0.01);
+    });
+  }
+
+  // 2. Small audible tick sound to give hint that time is going to finish
+  public playWarningTick(volumePercent: number = 75) {
+    this.initContext();
+    if (!this.ctx) return;
+
+    const vol = Math.max(0, Math.min(1, volumePercent / 100));
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    // Sharp acoustic countdown hint tick (1350Hz dropping quickly to 600Hz in 38ms)
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1350, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.038);
+
+    gain.gain.setValueAtTime(vol * 0.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.045);
+  }
+
+  // 3. Full finish buzzer when time runs out
+  public playTimeUpBuzzer(
+    sound: 'horn' | 'digital' | 'alarm' | 'siren' | 'custom' = 'horn',
+    volumePercent: number = 90,
+    customAudioUrl?: string
+  ) {
+    this.playBuzzer(sound, volumePercent, customAudioUrl);
+  }
+
+  // Pleasant chime when wheel stops on winning topic or celebration
   public playPrepEndChime(volumePercent: number = 80) {
     this.initContext();
     if (!this.ctx) return;
@@ -229,29 +449,6 @@ class SoundEngine {
       osc.start(noteStart);
       osc.stop(noteStart + 0.85);
     });
-  }
-
-  // Subtle warning tick (e.g., at 10s remaining)
-  public playWarningTick(volumePercent: number = 60) {
-    this.initContext();
-    if (!this.ctx) return;
-
-    const vol = Math.max(0, Math.min(1, volumePercent / 100));
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(880, now);
-
-    gain.gain.setValueAtTime(vol * 0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.13);
   }
 
   // Fast mechanical tick for spinning wheel

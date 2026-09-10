@@ -36,8 +36,9 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Serve uploaded image files statically
+// Serve uploaded image files and public assets statically
 app.use('/uploads', express.static(UPLOADS_DIR));
+app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Initial default seed
 const defaultSettings: EventSettings = {
@@ -76,12 +77,14 @@ const defaultSettings: EventSettings = {
     volume: 90,
     sound: 'horn',
     autoBuzzerOnZero: true,
+    prepSound: 'dual_alert',
+    prepVolume: 85,
   },
   stations: [
-    { id: 'station-a', name: 'Station A', location: 'Room 101' },
-    { id: 'station-b', name: 'Station B', location: 'Room 102' },
-    { id: 'station-c', name: 'Station C', location: 'Room 103' },
-    { id: 'station-d', name: 'Station D', location: 'Auditorium Stage' },
+    { id: 'station-a', name: 'Station A', location: 'Room 101', handlerName: 'Alex Rivera', handlerPhone: '+1 (555) 234-5678', handlerRole: 'Stage Lead', handlerStatus: 'ready' },
+    { id: 'station-b', name: 'Station B', location: 'Room 102', handlerName: 'Maya Lin', handlerPhone: '+1 (555) 345-6789', handlerRole: 'Timekeeper', handlerStatus: 'ready' },
+    { id: 'station-c', name: 'Station C', location: 'Room 103', handlerName: 'Liam Carter', handlerPhone: '+1 (555) 456-7890', handlerRole: 'Coordinator', handlerStatus: 'ready' },
+    { id: 'station-d', name: 'Station D', location: 'Auditorium Stage', handlerName: 'Sophia Chen', handlerPhone: '+1 (555) 567-8901', handlerRole: 'Stage Manager', handlerStatus: 'ready' },
   ],
 };
 
@@ -101,13 +104,15 @@ const defaultParticipants: Participant[] = [
     id: 'p-101',
     participantNumber: 'M2M-001',
     name: 'Aarav Sharma',
-    college: 'Delhi Technological University',
-    department: 'Computer Science',
+    mobile: '+91 98765 43210',
+    phone: '+91 98765 43210',
+    stationId: 'station-a',
+    stationName: 'Station A',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+91 98765 43210' },
+    customData: { phone: '+91 98765 43210', mobile: '+91 98765 43210' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -115,13 +120,15 @@ const defaultParticipants: Participant[] = [
     id: 'p-102',
     participantNumber: 'M2M-002',
     name: 'Maya Chen',
-    college: 'Metropolitan Institute of Technology',
-    department: 'Literature & Communications',
+    mobile: '+1 415 555 0192',
+    phone: '+1 415 555 0192',
+    stationId: 'station-b',
+    stationName: 'Station B',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+1 415 555 0192' },
+    customData: { phone: '+1 415 555 0192', mobile: '+1 415 555 0192' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -129,13 +136,15 @@ const defaultParticipants: Participant[] = [
     id: 'p-103',
     participantNumber: 'M2M-003',
     name: 'Lucas Dupont',
-    college: 'Sorbonne University',
-    department: 'Philosophy & Ethics',
+    mobile: '+33 6 12 34 56 78',
+    phone: '+33 6 12 34 56 78',
+    stationId: 'station-a',
+    stationName: 'Station A',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+33 6 12 34 56 78' },
+    customData: { phone: '+33 6 12 34 56 78', mobile: '+33 6 12 34 56 78' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -143,13 +152,15 @@ const defaultParticipants: Participant[] = [
     id: 'p-104',
     participantNumber: 'M2M-004',
     name: 'Priya Patel',
-    college: 'National Law School',
-    department: 'Public Policy',
+    mobile: '+91 91234 56789',
+    phone: '+91 91234 56789',
+    stationId: 'station-c',
+    stationName: 'Station C',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+91 91234 56789' },
+    customData: { phone: '+91 91234 56789', mobile: '+91 91234 56789' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -157,13 +168,15 @@ const defaultParticipants: Participant[] = [
     id: 'p-105',
     participantNumber: 'M2M-005',
     name: 'David Kim',
-    college: 'Seoul National University',
-    department: 'Economics',
+    mobile: '+82 10 9876 5432',
+    phone: '+82 10 9876 5432',
+    stationId: 'station-d',
+    stationName: 'Station D',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+82 10 9876 5432' },
+    customData: { phone: '+82 10 9876 5432', mobile: '+82 10 9876 5432' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
@@ -171,92 +184,102 @@ const defaultParticipants: Participant[] = [
     id: 'p-106',
     participantNumber: 'M2M-006',
     name: 'Zara Al-Mansoor',
-    college: 'King Fahd University',
-    department: 'Media Studies',
+    mobile: '+971 50 123 4567',
+    phone: '+971 50 123 4567',
+    stationId: 'station-b',
+    stationName: 'Station B',
     status: 'active',
     round1Status: 'pending',
     round2Status: 'pending',
     round3Status: 'pending',
-    customData: { phone: '+971 50 123 4567' },
+    customData: { phone: '+971 50 123 4567', mobile: '+971 50 123 4567' },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   },
 ];
 
 const defaultTopics: Topic[] = [
-  { id: 'top-1', topic: 'Is AI creative or merely a parrot of human culture?', category: 'Technology', status: 'available' },
-  { id: 'top-2', topic: 'The Power of Silence in an Age of Constant Noise', category: 'Philosophy', status: 'available' },
-  { id: 'top-3', topic: 'Should college degrees remain the benchmark for intellect?', category: 'Education', status: 'available' },
-  { id: 'top-4', topic: 'Digital Privacy: A Universal Right or a Modern Myth?', category: 'Society', status: 'available' },
-  { id: 'top-5', topic: 'Can empathy be taught or is it hardwired?', category: 'Psychology', status: 'available' },
-  { id: 'top-6', topic: 'The Myth of the Overnight Success Story', category: 'Mindset', status: 'available' },
-  { id: 'top-7', topic: 'Why Failure is the Highest Form of Curriculum', category: 'Mindset', status: 'available' },
-  { id: 'top-8', topic: 'Are algorithms polarizing human empathy?', category: 'Technology', status: 'available' },
-  { id: 'top-9', topic: 'The Future of Clean Energy: Science vs Politics', category: 'Environment', status: 'available' },
-  { id: 'top-10', topic: 'Is Cancel Culture Accountability or Retribution?', category: 'Culture', status: 'available' },
-  { id: 'top-11', topic: 'The Vanishing Art of Deep Focused Work', category: 'Productivity', status: 'available' },
-  { id: 'top-12', topic: 'Does Wealth Obligate Philanthropy?', category: 'Ethics', status: 'available' },
-  { id: 'top-13', topic: 'Space Colonization vs Fixing Earth: Where should billions go?', category: 'Future', status: 'available' },
-  { id: 'top-14', topic: 'The Illusion of Infinite Free Time', category: 'Time', status: 'available' },
-  { id: 'top-15', topic: 'Is Social Media Making Us lonelier together?', category: 'Society', status: 'available' },
-  { id: 'top-16', topic: 'Leadership in Crisis: Decisiveness vs Compassion', category: 'Leadership', status: 'available' },
-  { id: 'top-17', topic: 'The Paradox of Choice: Does more freedom bring happiness?', category: 'Philosophy', status: 'available' },
-  { id: 'top-18', topic: 'Virtual Reality vs Physical Reality: The new divide', category: 'Technology', status: 'available' },
-  { id: 'top-19', topic: 'Who is responsible for climate action: Individuals or Corporations?', category: 'Environment', status: 'available' },
-  { id: 'top-20', topic: 'The Price of Perfectionism in Youth', category: 'Psychology', status: 'available' },
-  { id: 'top-21', topic: 'Can Humor be used as an Instrument of Truth?', category: 'Culture', status: 'available' },
-  { id: 'top-22', topic: 'Why We Need More Generalists, Not Just Specialists', category: 'Career', status: 'available' },
-  { id: 'top-23', topic: 'The Ethics of Human Genetic Engineering', category: 'Bioethics', status: 'available' },
-  { id: 'top-24', topic: 'The Art of Disagreeing Without Becoming Enemies', category: 'Communication', status: 'available' },
-  { id: 'top-25', topic: 'Will Automation Create a Leisure Society or Economic Despair?', category: 'Economics', status: 'available' },
+  { id: 'top-1', topicId: 'TOP-001', topic: 'Is AI creative or merely a parrot of human culture?', category: 'Technology', status: 'available' },
+  { id: 'top-2', topicId: 'TOP-002', topic: 'The Power of Silence in an Age of Constant Noise', category: 'Philosophy', status: 'available' },
+  { id: 'top-3', topicId: 'TOP-003', topic: 'Should college degrees remain the benchmark for intellect?', category: 'Education', status: 'available' },
+  { id: 'top-4', topicId: 'TOP-004', topic: 'Digital Privacy: A Universal Right or a Modern Myth?', category: 'Society', status: 'available' },
+  { id: 'top-5', topicId: 'TOP-005', topic: 'Can empathy be taught or is it hardwired?', category: 'Psychology', status: 'available' },
+  { id: 'top-6', topicId: 'TOP-006', topic: 'The Myth of the Overnight Success Story', category: 'Mindset', status: 'available' },
+  { id: 'top-7', topicId: 'TOP-007', topic: 'Why Failure is the Highest Form of Curriculum', category: 'Mindset', status: 'available' },
+  { id: 'top-8', topicId: 'TOP-008', topic: 'Are algorithms polarizing human empathy?', category: 'Technology', status: 'available' },
+  { id: 'top-9', topicId: 'TOP-009', topic: 'The Future of Clean Energy: Science vs Politics', category: 'Environment', status: 'available' },
+  { id: 'top-10', topicId: 'TOP-010', topic: 'Is Cancel Culture Accountability or Retribution?', category: 'Culture', status: 'available' },
+  { id: 'top-11', topicId: 'TOP-011', topic: 'The Vanishing Art of Deep Focused Work', category: 'Productivity', status: 'available' },
+  { id: 'top-12', topicId: 'TOP-012', topic: 'Does Wealth Obligate Philanthropy?', category: 'Ethics', status: 'available' },
+  { id: 'top-13', topicId: 'TOP-013', topic: 'Space Colonization vs Fixing Earth: Where should billions go?', category: 'Future', status: 'available' },
+  { id: 'top-14', topicId: 'TOP-014', topic: 'The Illusion of Infinite Free Time', category: 'Time', status: 'available' },
+  { id: 'top-15', topicId: 'TOP-015', topic: 'Is Social Media Making Us lonelier together?', category: 'Society', status: 'available' },
+  { id: 'top-16', topicId: 'TOP-016', topic: 'Leadership in Crisis: Decisiveness vs Compassion', category: 'Leadership', status: 'available' },
+  { id: 'top-17', topicId: 'TOP-017', topic: 'The Paradox of Choice: Does more freedom bring happiness?', category: 'Philosophy', status: 'available' },
+  { id: 'top-18', topicId: 'TOP-018', topic: 'Virtual Reality vs Physical Reality: The new divide', category: 'Technology', status: 'available' },
+  { id: 'top-19', topicId: 'TOP-019', topic: 'Who is responsible for climate action: Individuals or Corporations?', category: 'Environment', status: 'available' },
+  { id: 'top-20', topicId: 'TOP-020', topic: 'The Price of Perfectionism in Youth', category: 'Psychology', status: 'available' },
+  { id: 'top-21', topicId: 'TOP-021', topic: 'Can Humor be used as an Instrument of Truth?', category: 'Culture', status: 'available' },
+  { id: 'top-22', topicId: 'TOP-022', topic: 'Why We Need More Generalists, Not Just Specialists', category: 'Career', status: 'available' },
+  { id: 'top-23', topicId: 'TOP-023', topic: 'The Ethics of Human Genetic Engineering', category: 'Bioethics', status: 'available' },
+  { id: 'top-24', topicId: 'TOP-024', topic: 'The Art of Disagreeing Without Becoming Enemies', category: 'Communication', status: 'available' },
+  { id: 'top-25', topicId: 'TOP-025', topic: 'Will Automation Create a Leisure Society or Economic Despair?', category: 'Economics', status: 'available' },
 ];
 
 const defaultImages: EventImage[] = [
   {
     id: 'img-1',
-    name: 'A Solitary Mic on a Dark Stage',
+    imageId: 'IMG-001',
+    name: 'IMG-001',
     url: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-2',
-    name: 'The Clockwork Gears of Thought',
+    imageId: 'IMG-002',
+    name: 'IMG-002',
     url: 'https://images.unsplash.com/photo-1508962914676-134849a727f0?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-3',
-    name: 'Neon Labyrinth of the City',
+    imageId: 'IMG-003',
+    name: 'IMG-003',
     url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-4',
-    name: 'Human Hand Meeting Robotic Fingers',
+    imageId: 'IMG-004',
+    name: 'IMG-004',
     url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-5',
-    name: 'Roots of an Ancient Tree in Stone',
+    imageId: 'IMG-005',
+    name: 'IMG-005',
     url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-6',
-    name: 'Astronaut Staring into the Cosmic Abyss',
+    imageId: 'IMG-006',
+    name: 'IMG-006',
     url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-7',
-    name: 'A Single Lighthouse in a Stormy Ocean',
+    imageId: 'IMG-007',
+    name: 'IMG-007',
     url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
   {
     id: 'img-8',
-    name: 'Chess King Toppled in Moonlight',
+    imageId: 'IMG-008',
+    name: 'IMG-008',
     url: 'https://images.unsplash.com/photo-1529699211952-734e80c4d42b?auto=format&fit=crop&w=1200&q=80',
     status: 'available',
   },
@@ -272,7 +295,16 @@ const defaultHistory: EventLog[] = [
   },
 ];
 
-function createInitialStationState(id: string, name: string, location: string): StationState {
+function createInitialStationState(
+  id: string,
+  name: string,
+  location: string,
+  handlerName?: string | null,
+  handlerPhone?: string | null,
+  handlerRole?: string | null,
+  handlerStatus?: 'active' | 'ready' | 'on_break' | 'busy' | 'away',
+  handlerNotes?: string | null
+): StationState {
   return {
     id,
     name,
@@ -306,13 +338,27 @@ function createInitialStationState(id: string, name: string, location: string): 
     claimedByDeviceId: null,
     claimedByDeviceName: null,
     lastHeartbeat: 0,
+    handlerName: handlerName || null,
+    handlerPhone: handlerPhone || null,
+    handlerRole: handlerRole || null,
+    handlerStatus: handlerStatus || 'ready',
+    handlerNotes: handlerNotes || null,
   };
 }
 
 function getInitialDatabase(): AppDatabase {
   const stations: Record<string, StationState> = {};
   (defaultSettings.stations || []).forEach((s) => {
-    stations[s.id] = createInitialStationState(s.id, s.name, s.location);
+    stations[s.id] = createInitialStationState(
+      s.id,
+      s.name,
+      s.location,
+      s.handlerName,
+      s.handlerPhone,
+      s.handlerRole,
+      s.handlerStatus,
+      s.handlerNotes
+    );
   });
 
   return {
@@ -367,6 +413,28 @@ try {
         // Sync name & location
         db.stations![s.id].name = s.name;
         db.stations![s.id].location = s.location;
+      }
+    });
+
+    // Ensure participants have qualification defaults
+    db.participants.forEach((p) => {
+      if (!p.round1Qualified) p.round1Qualified = 'pending';
+      if (!p.round2Qualified) p.round2Qualified = 'pending';
+      if (!p.round3Qualified) p.round3Qualified = 'pending';
+    });
+
+    // Ensure all images have imageId and name is set to ID (no titles revealed)
+    db.images.forEach((img, idx) => {
+      if (!img.imageId) {
+        img.imageId = `IMG-${String(idx + 1).padStart(3, '0')}`;
+      }
+      img.name = img.imageId;
+    });
+
+    // Ensure all topics have topicId
+    db.topics.forEach((t, idx) => {
+      if (!t.topicId) {
+        t.topicId = `TOP-${String(idx + 1).padStart(3, '0')}`;
       }
     });
 
@@ -433,6 +501,13 @@ function broadcastSSE(event: string, data: any) {
   });
 }
 
+// SSE heartbeat to keep connections alive and maintain synchronized clock offset
+setInterval(() => {
+  if (sseClients.length > 0) {
+    broadcastSSE('heartbeat', { serverTime: Date.now() });
+  }
+}, 10000);
+
 function logAction(action: string, details: string, round?: 'Round 1' | 'Round 2' | 'Round 3' | 'General', participantId?: string, participantName?: string) {
   const newLog: EventLog = {
     id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -453,9 +528,14 @@ function logAction(action: string, details: string, round?: 'Round 1' | 'Round 2
 
 // ================= API ROUTES =================
 
+// High-precision server time endpoint for network clock synchronization
+app.get('/api/time', (req: Request, res: Response) => {
+  res.json({ serverTime: Date.now() });
+});
+
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString(), participantsCount: db.participants.length });
+  res.json({ status: 'ok', timestamp: new Date().toISOString(), participantsCount: db.participants.length, serverTime: Date.now() });
 });
 
 // Full state
@@ -484,8 +564,8 @@ app.get('/api/events', (req: Request, res: Response) => {
   const client: SSEClient = { id: clientId, res, type };
   sseClients.push(client);
 
-  // Send initial ping and live sync state
-  res.write(`event: connected\ndata: ${JSON.stringify({ clientId, liveSync: db.liveSync })}\n\n`);
+  // Send initial ping, live sync state, and server timestamp for clock calibration
+  res.write(`event: connected\ndata: ${JSON.stringify({ clientId, liveSync: db.liveSync, serverTime: Date.now() })}\n\n`);
 
   req.on('close', () => {
     const idx = sseClients.findIndex((c) => c.id === clientId);
@@ -540,6 +620,42 @@ app.delete('/api/buzzer/custom-sound', (req: Request, res: Response) => {
   res.json({ success: true, buzzer: db.settings.buzzer });
 });
 
+// Preparation Timer Buzzer (30s prep countdown end) Sound Upload / Management
+app.post('/api/buzzer/prep-custom-sound', (req: Request, res: Response) => {
+  const { audioData, fileName } = req.body;
+  if (!audioData) {
+    return res.status(400).json({ error: 'Audio data is required' });
+  }
+
+  if (!db.settings.buzzer) {
+    db.settings.buzzer = { ...defaultSettings.buzzer };
+  }
+
+  db.settings.buzzer.prepSound = 'custom';
+  db.settings.buzzer.prepCustomAudioUrl = audioData;
+  db.settings.buzzer.prepCustomAudioName = fileName || 'custom_prep_buzzer_audio';
+
+  persistDB();
+  logAction('Prep Buzzer Updated', `Custom 30s prep buzzer uploaded: ${fileName || 'custom audio'}`);
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, buzzer: db.settings.buzzer });
+});
+
+app.delete('/api/buzzer/prep-custom-sound', (req: Request, res: Response) => {
+  if (!db.settings.buzzer) {
+    db.settings.buzzer = { ...defaultSettings.buzzer };
+  }
+
+  db.settings.buzzer.prepSound = 'dual_alert';
+  delete db.settings.buzzer.prepCustomAudioUrl;
+  delete db.settings.buzzer.prepCustomAudioName;
+
+  persistDB();
+  logAction('Prep Buzzer Reset', 'Custom preparation buzzer reset to energetic dual alert');
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, buzzer: db.settings.buzzer });
+});
+
 // Live Sync (organizer updates projector & mobile display)
 app.get('/api/live-sync', (req: Request, res: Response) => {
   res.json(db.liveSync);
@@ -554,8 +670,9 @@ app.post('/api/live-sync', (req: Request, res: Response) => {
 
 // Synchronized Timer Action Endpoint
 app.post('/api/timer/action', (req: Request, res: Response) => {
-  const { action, phase, totalSeconds, remainingSeconds, round, endsAt } = req.body;
+  const { action, phase, totalSeconds, remainingSeconds, round, endsAt, startedAt } = req.body;
   const now = Date.now();
+  const effectiveStart = typeof startedAt === 'number' && Math.abs(now - startedAt) < 2500 ? startedAt : now;
 
   if (action === 'start') {
     const rem = typeof remainingSeconds === 'number' ? remainingSeconds : (totalSeconds || 120);
@@ -568,10 +685,10 @@ app.post('/api/timer/action', (req: Request, res: Response) => {
     db.liveSync.timerRemainingSeconds = rem;
     db.liveSync.isTimerRunning = true;
     db.liveSync.timerStatus = 'running';
-    db.liveSync.timerStartTime = now;
-    db.liveSync.timerStartedAt = now;
+    db.liveSync.timerStartTime = effectiveStart;
+    db.liveSync.timerStartedAt = effectiveStart;
     db.liveSync.timerAccumulatedMs = 0;
-    db.liveSync.timerEndsAt = typeof endsAt === 'number' ? endsAt : now + rem * 1000;
+    db.liveSync.timerEndsAt = typeof endsAt === 'number' ? endsAt : effectiveStart + rem * 1000;
     db.liveSync.timerStopTime = null;
     db.liveSync.isOvertime = false;
     db.liveSync.overtimeSeconds = 0;
@@ -584,8 +701,8 @@ app.post('/api/timer/action', (req: Request, res: Response) => {
       s.timerRemainingSeconds = rem;
       s.isTimerRunning = true;
       s.timerStatus = 'running';
-      s.timerStartTime = now;
-      s.timerStartedAt = now;
+      s.timerStartTime = effectiveStart;
+      s.timerStartedAt = effectiveStart;
       s.timerAccumulatedMs = 0;
       s.timerEndsAt = db.liveSync.timerEndsAt;
       s.timerStopTime = null;
@@ -734,10 +851,11 @@ app.post('/api/timer/action', (req: Request, res: Response) => {
     timerEndsAt: db.liveSync.timerEndsAt,
     isOvertime: db.liveSync.isOvertime,
     overtimeSeconds: db.liveSync.overtimeSeconds,
+    serverTime: now,
   });
-  broadcastSSE('live_sync_update', db.liveSync);
+  broadcastSSE('live_sync_update', { ...db.liveSync, serverTime: now });
 
-  res.json({ success: true, liveSync: db.liveSync });
+  res.json({ success: true, liveSync: db.liveSync, serverTime: now });
 });
 
 // Atomic Round 1 Image Assignment (No-repeat across devices/stations)
@@ -769,10 +887,16 @@ app.post('/api/round1/assign-image', (req: Request, res: Response) => {
 
   // Update live sync
   db.liveSync.currentRound = 1;
-  if (participantId) db.liveSync.activeParticipantId = participantId;
+  if (participantId) {
+    db.liveSync.activeParticipantId = participantId;
+    const p = db.participants.find((item) => item.id === participantId);
+    if (p) {
+      p.round1ImageId = chosen.imageId || chosen.name || chosen.id;
+    }
+  }
   db.liveSync.activeItem = {
     type: 'image',
-    title: chosen.name,
+    title: chosen.imageId || chosen.name || chosen.id,
     mediaUrl: chosen.url,
     id: chosen.id,
   };
@@ -801,11 +925,14 @@ app.post('/api/round2/spin-topic', (req: Request, res: Response) => {
     }
   }
 
-  // Ensure selection is strictly among topics rendered on the active wheel
+  // Ensure selection is strictly among topics rendered on the active wheel (preserving wheel order)
   const wheelCount = db.settings.round2.activeWheelTopicCount || 20;
-  let candidates = pool;
+  let candidates: Topic[] = pool;
   if (Array.isArray(wheelTopicIds) && wheelTopicIds.length > 0) {
-    const fromWheel = pool.filter((t) => wheelTopicIds.includes(t.id));
+    const topicsMap = new Map(db.topics.map((t) => [t.id, t]));
+    const fromWheel = wheelTopicIds
+      .map((id) => topicsMap.get(id))
+      .filter((t): t is Topic => Boolean(t) && (db.settings.round2.topicReuseAllowed || t.status === 'available'));
     if (fromWheel.length > 0) {
       candidates = fromWheel;
     } else {
@@ -829,7 +956,13 @@ app.post('/api/round2/spin-topic', (req: Request, res: Response) => {
   const startedAt = Date.now();
 
   db.liveSync.currentRound = 2;
-  if (participantId) db.liveSync.activeParticipantId = participantId;
+  if (participantId) {
+    db.liveSync.activeParticipantId = participantId;
+    const p = db.participants.find((item) => item.id === participantId);
+    if (p) {
+      p.round2TopicId = chosen.topicId || chosen.id;
+    }
+  }
   db.liveSync.wheelSpin = {
     isSpinning: true,
     targetTopicId: chosen.id,
@@ -875,8 +1008,30 @@ function getStation(id: string): StationState {
     db.stations[id] = createInitialStationState(
       id,
       configStation?.name || `Station ${id.toUpperCase()}`,
-      configStation?.location || 'Auditorium'
+      configStation?.location || 'Auditorium',
+      configStation?.handlerName,
+      configStation?.handlerPhone,
+      configStation?.handlerRole,
+      configStation?.handlerStatus,
+      configStation?.handlerNotes
     );
+  } else {
+    // Backfill handler from settings if station already exists
+    const configStation = db.settings.stations?.find((s) => s.id === id);
+    if (configStation) {
+      if (!db.stations[id].handlerName && configStation.handlerName) {
+        db.stations[id].handlerName = configStation.handlerName;
+      }
+      if (!db.stations[id].handlerPhone && configStation.handlerPhone) {
+        db.stations[id].handlerPhone = configStation.handlerPhone;
+      }
+      if (!db.stations[id].handlerRole && configStation.handlerRole) {
+        db.stations[id].handlerRole = configStation.handlerRole;
+      }
+      if (!db.stations[id].handlerStatus && configStation.handlerStatus) {
+        db.stations[id].handlerStatus = configStation.handlerStatus;
+      }
+    }
   }
   return db.stations[id];
 }
@@ -960,6 +1115,56 @@ app.post('/api/stations/:id/release', (req: Request, res: Response) => {
   }
 
   res.json({ success: true });
+});
+
+// Update Station Handler & Details
+app.post('/api/stations/:id/handler', (req: Request, res: Response) => {
+  const station = getStation(req.params.id);
+  const { handlerName, handlerPhone, handlerRole, handlerStatus, handlerNotes, name, location } = req.body;
+
+  if (handlerName !== undefined) station.handlerName = handlerName ? String(handlerName).trim() : null;
+  if (handlerPhone !== undefined) station.handlerPhone = handlerPhone ? String(handlerPhone).trim() : null;
+  if (handlerRole !== undefined) station.handlerRole = handlerRole ? String(handlerRole).trim() : null;
+  if (handlerStatus !== undefined) station.handlerStatus = handlerStatus || 'ready';
+  if (handlerNotes !== undefined) station.handlerNotes = handlerNotes || '';
+  if (name !== undefined && name.trim()) station.name = name.trim();
+  if (location !== undefined && location.trim()) station.location = location.trim();
+
+  // Also sync to settings.stations if present
+  if (db.settings.stations) {
+    const sInSettings = db.settings.stations.find((s) => s.id === station.id);
+    if (sInSettings) {
+      if (station.name) sInSettings.name = station.name;
+      if (station.location) sInSettings.location = station.location;
+      sInSettings.handlerName = station.handlerName || undefined;
+      sInSettings.handlerPhone = station.handlerPhone || undefined;
+      sInSettings.handlerRole = station.handlerRole || undefined;
+      sInSettings.handlerStatus = station.handlerStatus || undefined;
+      sInSettings.handlerNotes = station.handlerNotes || undefined;
+    }
+  }
+
+  persistDB();
+  logAction('Station Handler Updated', `Updated handler for ${station.name}: ${station.handlerName || 'None'} (${station.handlerRole || 'Handler'})`);
+  broadcastSSE('station_updated', station);
+  res.json({ success: true, station });
+});
+
+// Ping Station Handler / Controller
+app.post('/api/stations/:id/ping', (req: Request, res: Response) => {
+  const station = getStation(req.params.id);
+  const { senderName, message } = req.body;
+  const alertMsg = message || `Master Monitor pinged ${station.name}!`;
+
+  logAction('Station Pinged', `${senderName || 'Master'} pinged ${station.name} (${station.handlerName || 'No handler'})`);
+  broadcastSSE('station_ping', {
+    stationId: station.id,
+    stationName: station.name,
+    handlerName: station.handlerName,
+    message: alertMsg,
+    timestamp: Date.now(),
+  });
+  res.json({ success: true, message: 'Ping sent to station' });
 });
 
 // Set Station Round (Round is station-specific, not event-global!)
@@ -1076,6 +1281,13 @@ app.post('/api/stations/:id/assign-image', (req: Request, res: Response) => {
   station.selectedImage = chosen;
   station.currentRound = 1;
 
+  if (station.activeParticipantId) {
+    const p = db.participants.find((item) => item.id === station.activeParticipantId);
+    if (p) {
+      p.round1ImageId = chosen.imageId || chosen.name || chosen.id;
+    }
+  }
+
   const hasPrep = (db.settings.round1.prepTimeSeconds || 0) > 0;
   if (hasPrep) {
     station.status = 'PREPARING';
@@ -1101,7 +1313,7 @@ app.post('/api/stations/:id/assign-image', (req: Request, res: Response) => {
   if (station.activeParticipantId) db.liveSync.activeParticipantId = station.activeParticipantId;
   db.liveSync.activeItem = {
     type: 'image',
-    title: chosen.name,
+    title: chosen.imageId || chosen.name || chosen.id,
     mediaUrl: chosen.url,
     id: chosen.id,
   };
@@ -1141,23 +1353,49 @@ app.post('/api/stations/:id/spin-topic', (req: Request, res: Response) => {
     }
   }
 
-  // Ensure candidates are selected from the active wheel slices
+  // Ensure candidates are selected from the active wheel slices (preserving wheel order)
   const wheelCount = db.settings.round2.activeWheelTopicCount || 20;
-  let candidates = pool;
+  let candidates: Topic[] = [];
+
+  const topicsMap = new Map(db.topics.map((t) => [t.id, t]));
+
   if (Array.isArray(wheelTopicIds) && wheelTopicIds.length > 0) {
-    const fromWheel = pool.filter((t) => wheelTopicIds.includes(t.id));
-    if (fromWheel.length > 0) {
-      candidates = fromWheel;
-    } else {
-      candidates = pool.slice(0, wheelCount);
-    }
+    // Preserve exact client slot count and order
+    candidates = wheelTopicIds.map((id) => {
+      const topic = topicsMap.get(id);
+      // If topic is available or reuse allowed, keep it
+      if (topic && (db.settings.round2.topicReuseAllowed || topic.status === 'available')) {
+        return topic;
+      }
+      // Otherwise replace this slot with next unused topic
+      const nextUnused = pool.find((p) => !wheelTopicIds.includes(p.id) && !candidates.some((c) => c?.id === p.id));
+      return nextUnused || topic || pool[0];
+    });
+  } else if (station.activeWheelTopics && station.activeWheelTopics.length > 0) {
+    candidates = [...station.activeWheelTopics];
   } else {
+    candidates = pool.slice(0, wheelCount);
+  }
+
+  // Ensure candidates has no null/undefined and has at least 1 topic
+  candidates = candidates.filter(Boolean);
+  if (candidates.length === 0) {
     candidates = pool.slice(0, wheelCount);
   }
 
   // Select EXACTLY ONE topic in backend from the wheel candidates
   const chosen = candidates[Math.floor(Math.random() * candidates.length)];
   const targetIndex = candidates.findIndex((t) => t.id === chosen.id);
+
+  // Update station active wheel topics to match this exact candidates list
+  station.activeWheelTopics = [...candidates];
+
+  if (station.activeParticipantId) {
+    const p = db.participants.find((item) => item.id === station.activeParticipantId);
+    if (p) {
+      p.round2TopicId = chosen.topicId || chosen.id;
+    }
+  }
 
   // Immediately claim as USED in backend
   if (!db.settings.round2.topicReuseAllowed) {
@@ -1212,6 +1450,8 @@ app.post('/api/stations/:id/spin-topic', (req: Request, res: Response) => {
   res.json({
     success: true,
     topic: chosen,
+    targetIndex: targetIndex >= 0 ? targetIndex : 0,
+    wheelTopics: candidates,
     startedAt,
     durationMs: spinDurationMs,
     station,
@@ -1234,6 +1474,24 @@ app.post('/api/stations/:id/spin-complete', (req: Request, res: Response) => {
       id: winningTopic.id,
       category: winningTopic.category,
     };
+
+    // Slot-preservation topic replacement:
+    // Replace the used topic in the wheel candidates with a fresh unused topic from the pool
+    let currentWheel = station.activeWheelTopics || station.wheelSpin?.wheelTopics || [];
+    if (currentWheel.length === 0) {
+      const wheelCount = db.settings.round2.activeWheelTopicCount || 20;
+      currentWheel = db.topics.filter((t) => t.status === 'available').slice(0, wheelCount);
+    }
+    const targetIdx = currentWheel.findIndex((t) => t.id === winningTopic.id);
+    if (targetIdx !== -1) {
+      const replacement = db.topics.find(
+        (t) => t.status === 'available' && t.id !== winningTopic.id && !currentWheel.some((w) => w.id === t.id)
+      );
+      if (replacement) {
+        currentWheel[targetIdx] = replacement;
+      }
+      station.activeWheelTopics = [...currentWheel];
+    }
   }
   station.pendingTopic = undefined;
   station.wheelSpin = null;
@@ -1258,14 +1516,44 @@ app.post('/api/stations/:id/spin-complete', (req: Request, res: Response) => {
   persistDB();
   broadcastSSE('station_updated', station);
   broadcastSSE('live_sync_update', db.liveSync);
-  res.json({ success: true, station, winningTopic });
+  res.json({ success: true, station, winningTopic, activeWheelTopics: station.activeWheelTopics });
+});
+
+// Explicit endpoint to replace a used topic on a station's wheel
+app.post('/api/stations/:id/wheel-replace', (req: Request, res: Response) => {
+  const station = getStation(req.params.id);
+  const { usedTopicId, replacementTopicId } = req.body;
+  let currentWheel = station.activeWheelTopics || [];
+  const wheelCount = db.settings.round2.activeWheelTopicCount || 20;
+  if (currentWheel.length === 0) {
+    currentWheel = db.topics.filter((t) => t.status === 'available').slice(0, wheelCount);
+  }
+
+  if (usedTopicId) {
+    const idx = currentWheel.findIndex((t) => t.id === usedTopicId);
+    if (idx !== -1) {
+      const replacement = replacementTopicId
+        ? db.topics.find((t) => t.id === replacementTopicId)
+        : db.topics.find(
+            (t) => t.status === 'available' && t.id !== usedTopicId && !currentWheel.some((w) => w.id === t.id)
+          );
+      if (replacement) {
+        currentWheel[idx] = replacement;
+      }
+    }
+  }
+  station.activeWheelTopics = [...currentWheel];
+  persistDB();
+  broadcastSSE('station_updated', station);
+  res.json({ success: true, activeWheelTopics: station.activeWheelTopics });
 });
 
 // Independent Station Timer Action with Shared Timestamp Synchronization & Continuous Overtime
 app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
   const station = getStation(req.params.id);
-  const { action, phase, totalSeconds, remainingSeconds, round, endsAt } = req.body;
+  const { action, phase, totalSeconds, remainingSeconds, round, endsAt, startedAt } = req.body;
   const now = Date.now();
+  const effectiveStart = typeof startedAt === 'number' && Math.abs(now - startedAt) < 2500 ? startedAt : now;
   const roundSettings = (db.settings as any)[`round${station.currentRound}`] || db.settings.round1;
 
   if (action === 'start') {
@@ -1280,10 +1568,10 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
     station.timerRemainingSeconds = rem;
     station.isTimerRunning = true;
     station.timerStatus = 'running';
-    station.timerStartTime = now;
-    station.timerStartedAt = now;
+    station.timerStartTime = effectiveStart;
+    station.timerStartedAt = effectiveStart;
     station.timerAccumulatedMs = 0;
-    station.timerEndsAt = typeof endsAt === 'number' ? endsAt : now + rem * 1000;
+    station.timerEndsAt = typeof endsAt === 'number' ? endsAt : effectiveStart + rem * 1000;
     station.timerStopTime = null;
     station.status = station.timerMode === 'prep' ? 'PREPARING' : 'SPEAKING';
     station.buzzerPlayed = false;
@@ -1393,7 +1681,7 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
       });
     }
   } else if (action === 'stop' || action === 'stop_with_buzzer') {
-    // STOP TIMER: Operator clicked Stop button -> Immediate Buzzer and freeze timer!
+    // STOP TIMER: Operator clicked Stop button -> freeze timer cleanly with NO sound and NO buzzer!
     const runMs = station.timerStartTime ? now - station.timerStartTime : 0;
     station.timerAccumulatedMs = (station.timerAccumulatedMs || 0) + runMs;
     station.timerStartTime = null;
@@ -1403,8 +1691,6 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
     station.isTimerRunning = false;
     station.timerStatus = 'stopped';
     station.status = 'TIME_UP';
-    station.buzzerTimestamp = now;
-    station.lastBuzzerEventId = `buzzer-${now}-${station.id}`;
 
     const totalElapsedSec = Math.floor(station.timerAccumulatedMs / 1000);
     const duration = station.timerDuration || 120;
@@ -1417,20 +1703,7 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
     db.liveSync.timerStartTime = null;
     db.liveSync.timerStartedAt = null;
     db.liveSync.timerEndsAt = null;
-    db.liveSync.buzzerTimestamp = now;
-
-    broadcastSSE('buzzer_trigger', {
-      timestamp: now,
-      eventId: station.lastBuzzerEventId,
-      stationId: station.id,
-      stationName: station.name,
-      source: 'operator_stop',
-      reason: 'Operator Stopped Speech',
-      round: round || `Round ${station.currentRound}`,
-      participantName: station.activeParticipant?.name,
-      sound: db.settings.buzzer.sound,
-      volume: db.settings.buzzer.volume,
-    });
+    // Deliberately NO buzzer sound, NO buzzerTimestamp, and NO buzzer_trigger SSE broadcast on stop
   } else if (action === 'reset') {
     const initSec = (roundSettings.prepEnabled && (roundSettings.prepTimeSeconds || 0) > 0)
       ? roundSettings.prepTimeSeconds
@@ -1469,9 +1742,9 @@ app.post('/api/stations/:id/timer', (req: Request, res: Response) => {
   }
 
   persistDB();
-  broadcastSSE('station_updated', station);
-  broadcastSSE('live_sync_update', db.liveSync);
-  res.json({ success: true, station });
+  broadcastSSE('station_updated', { ...station, serverTime: now });
+  broadcastSSE('live_sync_update', { ...db.liveSync, serverTime: now });
+  res.json({ success: true, station, serverTime: now });
 });
 
 // RESET ALL STATUSES (Master / Admin Command)
@@ -1490,6 +1763,10 @@ app.post('/api/event/reset-all-statuses', (req: Request, res: Response) => {
     p.round1Status = 'pending';
     p.round2Status = 'pending';
     p.round3Status = 'pending';
+    p.round1Qualified = 'pending';
+    p.round2Qualified = 'pending';
+    p.round3Qualified = 'pending';
+    delete p.qualificationReason;
   });
 
   // 3. Reset all images to available
@@ -1642,8 +1919,10 @@ app.post('/api/participants', (req: Request, res: Response) => {
     id: newId,
     participantNumber,
     name: p.name.trim(),
-    college: p.college?.trim() || 'Unknown College',
-    department: p.department?.trim() || 'General',
+    mobile: p.mobile?.trim() || p.phone?.trim() || p.customData?.phone || p.customData?.mobile || '',
+    phone: p.phone?.trim() || p.mobile?.trim() || p.customData?.phone || p.customData?.mobile || '',
+    stationId: p.stationId || '',
+    stationName: p.stationName || '',
     status: p.status || 'active',
     round1Status: p.round1Status || 'pending',
     round2Status: p.round2Status || 'pending',
@@ -1655,7 +1934,7 @@ app.post('/api/participants', (req: Request, res: Response) => {
 
   db.participants.push(newParticipant);
   persistDB();
-  logAction('Participant Added', `Added ${newParticipant.name} (${newParticipant.participantNumber}) from ${newParticipant.college}`);
+  logAction('Participant Added', `Added ${newParticipant.name} (${newParticipant.participantNumber})`);
   broadcastSSE('participant_created', newParticipant);
   res.json(newParticipant);
 });
@@ -1710,8 +1989,10 @@ app.post('/api/participants/batch', (req: Request, res: Response) => {
       id: `p-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
       participantNumber: item.participantNumber || `M2M-${String(counter++).padStart(3, '0')}`,
       name: item.name.trim(),
-      college: item.college?.trim() || 'General Institution',
-      department: item.department?.trim() || 'General',
+      mobile: item.mobile?.trim() || item.phone?.trim() || item.customData?.phone || item.customData?.mobile || '',
+      phone: item.phone?.trim() || item.mobile?.trim() || item.customData?.phone || item.customData?.mobile || '',
+      stationId: item.stationId || '',
+      stationName: item.stationName || '',
       status: item.status || 'active',
       round1Status: item.round1Status || 'pending',
       round2Status: item.round2Status || 'pending',
@@ -1728,6 +2009,32 @@ app.post('/api/participants/batch', (req: Request, res: Response) => {
   logAction('Batch Participant Import', `Imported ${created.length} participants into the event`);
   broadcastSSE('participants_batch_imported', created);
   res.json({ success: true, count: created.length, participants: created });
+});
+
+app.post('/api/participants/station/batch', (req: Request, res: Response) => {
+  const { participantIds, stationId, stationName } = req.body;
+  if (!Array.isArray(participantIds)) {
+    return res.status(400).json({ error: 'participantIds array is required' });
+  }
+
+  const updated: Participant[] = [];
+  participantIds.forEach((id) => {
+    const idx = db.participants.findIndex((p) => p.id === id);
+    if (idx !== -1) {
+      db.participants[idx].stationId = stationId || '';
+      db.participants[idx].stationName = stationName || '';
+      db.participants[idx].updatedAt = new Date().toISOString();
+      updated.push(db.participants[idx]);
+    }
+  });
+
+  persistDB();
+  logAction(
+    'Batch Station Assignment',
+    `Assigned ${updated.length} participants to station: ${stationName || stationId || 'Unassigned'}`
+  );
+  broadcastSSE('participants_batch_updated', updated);
+  res.json({ success: true, count: updated.length, participants: updated });
 });
 
 // Custom Fields
@@ -1793,11 +2100,12 @@ app.get('/api/topics', (req: Request, res: Response) => {
 });
 
 app.post('/api/topics', (req: Request, res: Response) => {
-  const { topic, category } = req.body;
+  const { topic, category, topicId } = req.body;
   if (!topic) return res.status(400).json({ error: 'Topic text is required' });
 
   const newTopic: Topic = {
     id: `top-${Date.now()}`,
+    topicId: topicId?.trim() || `TOP-${String(db.topics.length + 1).padStart(3, '0')}`,
     topic: topic.trim(),
     category: category?.trim() || 'General',
     status: 'available',
@@ -1805,7 +2113,7 @@ app.post('/api/topics', (req: Request, res: Response) => {
 
   db.topics.push(newTopic);
   persistDB();
-  logAction('Topic Created', `Added topic: "${newTopic.topic.substring(0, 40)}..."`);
+  logAction('Topic Created', `Added topic [${newTopic.topicId}]: "${newTopic.topic.substring(0, 40)}..."`);
   res.json(newTopic);
 });
 
@@ -1832,13 +2140,15 @@ app.delete('/api/topics/:id', (req: Request, res: Response) => {
 });
 
 app.post('/api/topics/batch', (req: Request, res: Response) => {
-  const items: { topic: string; category?: string }[] = req.body.topics || [];
+  const items: { topic: string; category?: string; topicId?: string }[] = req.body.topics || [];
   const added: Topic[] = [];
 
-  for (const item of items) {
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     if (!item.topic) continue;
     const t: Topic = {
       id: `top-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      topicId: item.topicId?.trim() || `TOP-${String(db.topics.length + i + 1).padStart(3, '0')}`,
       topic: item.topic.trim(),
       category: item.category?.trim() || 'General',
       status: 'available',
@@ -1870,33 +2180,58 @@ app.get('/api/images', (req: Request, res: Response) => {
 });
 
 app.post('/api/images', (req: Request, res: Response) => {
-  const { name, url } = req.body;
+  const { name, url, imageId } = req.body;
   if (!url) return res.status(400).json({ error: 'Image URL is required' });
 
+  const finalImageId = (imageId?.trim() || name?.trim() || `IMG-${String(db.images.length + 1).padStart(3, '0')}`).toUpperCase();
   const newImg: EventImage = {
     id: `img-${Date.now()}`,
-    name: name?.trim() || `Image #${db.images.length + 1}`,
+    imageId: finalImageId,
+    name: finalImageId,
     url: url.trim(),
     status: 'available',
   };
 
   db.images.push(newImg);
   persistDB();
-  logAction('Image Added', `Added image: "${newImg.name}"`);
+  logAction('Image Added', `Added image with ID: "${newImg.imageId}"`);
   broadcastSSE('images_updated', db.images);
   res.json(newImg);
+});
+
+app.put('/api/images/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const img = db.images.find((i) => i.id === id);
+  if (!img) return res.status(404).json({ error: 'Image not found' });
+
+  const { imageId, name, status, url } = req.body;
+  if (imageId !== undefined) {
+    img.imageId = imageId.trim().toUpperCase();
+    img.name = img.imageId;
+  }
+  if (name !== undefined && !imageId) {
+    img.name = name.trim();
+    if (!img.imageId) img.imageId = img.name;
+  }
+  if (status !== undefined) img.status = status;
+  if (url !== undefined) img.url = url.trim();
+
+  persistDB();
+  logAction('Image Updated', `Updated image ID to "${img.imageId}"`);
+  broadcastSSE('images_updated', db.images);
+  res.json(img);
 });
 
 // Laptop Image Upload Endpoint (Saves to persistent online uploads directory)
 app.post('/api/images/upload', (req: Request, res: Response) => {
   try {
-    const { images, name, base64 } = req.body;
-    const itemsToProcess: Array<{ name: string; base64: string }> = [];
+    const { images, name, base64, imageId } = req.body;
+    const itemsToProcess: Array<{ name?: string; imageId?: string; base64: string }> = [];
 
     if (Array.isArray(images)) {
       itemsToProcess.push(...images);
     } else if (base64) {
-      itemsToProcess.push({ name: name || 'Uploaded Image', base64 });
+      itemsToProcess.push({ name: name || 'Uploaded Image', imageId, base64 });
     }
 
     if (itemsToProcess.length === 0) {
@@ -1905,7 +2240,8 @@ app.post('/api/images/upload', (req: Request, res: Response) => {
 
     const createdImages: EventImage[] = [];
 
-    for (const item of itemsToProcess) {
+    for (let i = 0; i < itemsToProcess.length; i++) {
+      const item = itemsToProcess[i];
       let data = item.base64;
       let ext = 'jpg';
 
@@ -1916,15 +2252,17 @@ app.post('/api/images/upload', (req: Request, res: Response) => {
       }
 
       const buffer = Buffer.from(data, 'base64');
-      const cleanName = (item.name || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+      const cleanName = (item.imageId || item.name || 'image').replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
       const filename = `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${cleanName}.${ext}`;
       const filePath = path.join(UPLOADS_DIR, filename);
 
       fs.writeFileSync(filePath, buffer);
 
+      const assignedId = (item.imageId?.trim() || `IMG-${String(db.images.length + 1).padStart(3, '0')}`).toUpperCase();
       const newImg: EventImage = {
         id: `img-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-        name: item.name ? item.name.replace(/\.[^/.]+$/, '') : `Image #${db.images.length + 1}`,
+        imageId: assignedId,
+        name: assignedId,
         url: `/uploads/${filename}`,
         status: 'available',
       };
@@ -1934,7 +2272,7 @@ app.post('/api/images/upload', (req: Request, res: Response) => {
     }
 
     persistDB();
-    logAction('Images Uploaded', `Uploaded ${createdImages.length} image(s) from laptop to persistent server repository.`);
+    logAction('Images Uploaded', `Uploaded ${createdImages.length} image(s) with assigned IDs to repository.`);
     broadcastSSE('images_updated', db.images);
 
     res.json({
@@ -1984,6 +2322,62 @@ app.put('/api/settings', (req: Request, res: Response) => {
   res.json(db.settings);
 });
 
+// Logo management API
+app.post('/api/settings/logo', (req: Request, res: Response) => {
+  const { logoData, fileName } = req.body;
+  if (!logoData) {
+    return res.status(400).json({ error: 'No logo data provided' });
+  }
+  db.settings.event = {
+    ...db.settings.event,
+    customLogoUrl: logoData,
+    customLogoName: fileName || 'custom_logo',
+  };
+  persistDB();
+  logAction('Logo Updated', `Brand logo updated: ${fileName || 'custom logo'}`);
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, settings: db.settings });
+});
+
+app.delete('/api/settings/logo', (req: Request, res: Response) => {
+  if (db.settings.event) {
+    delete db.settings.event.customLogoUrl;
+    delete db.settings.event.customLogoName;
+  }
+  persistDB();
+  logAction('Logo Reset', 'Brand logo reset to default Mind to Mic logo');
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, settings: db.settings });
+});
+
+// Inspire 2K26 Logo API
+app.post('/api/settings/inspire-logo', (req: Request, res: Response) => {
+  const { logoData, fileName } = req.body;
+  if (!logoData) {
+    return res.status(400).json({ error: 'No logo data provided' });
+  }
+  db.settings.event = {
+    ...db.settings.event,
+    inspireLogoUrl: logoData,
+    inspireLogoName: fileName || 'inspire_logo',
+  };
+  persistDB();
+  logAction('Inspire Logo Updated', `Inspire logo updated: ${fileName || 'custom image'}`);
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, settings: db.settings });
+});
+
+app.delete('/api/settings/inspire-logo', (req: Request, res: Response) => {
+  if (db.settings.event) {
+    delete db.settings.event.inspireLogoUrl;
+    delete db.settings.event.inspireLogoName;
+  }
+  persistDB();
+  logAction('Inspire Logo Reset', 'Inspire logo reset to default vector asset');
+  broadcastSSE('settings_updated', db.settings);
+  res.json({ success: true, settings: db.settings });
+});
+
 // History Logs API
 app.get('/api/history', (req: Request, res: Response) => {
   res.json(db.history);
@@ -2013,17 +2407,26 @@ app.get('/api/results', (req: Request, res: Response) => {
 app.post('/api/results/round1', (req: Request, res: Response) => {
   const result = req.body;
   result.id = `r1-${Date.now()}`;
-  db.round1Results.push(result);
 
   // Update participant status
   const p = db.participants.find((item) => item.id === result.participantId);
   if (p) {
+    if (!result.participantNumber) result.participantNumber = p.participantNumber;
+    if (!result.mobile) result.mobile = p.mobile || p.phone || p.customData?.phone || '';
     p.round1Status = result.status;
+    p.round1ImageId = result.imageId || result.imageName;
+    if (result.qualification) {
+      p.round1Qualified = result.qualification;
+      if (result.qualification === 'disqualified') p.status = 'eliminated';
+      else if (result.qualification === 'qualified' && p.status === 'eliminated') p.status = 'active';
+    }
   }
+
+  db.round1Results.push(result);
 
   // Update image status
   if (!db.settings.round1.allowImageReuse) {
-    const img = db.images.find((i) => i.id === result.imageId);
+    const img = db.images.find((i) => i.id === result.imageId || i.imageId === result.imageId);
     if (img) {
       img.status = 'used';
       img.usedByParticipantId = result.participantId;
@@ -2041,16 +2444,25 @@ app.post('/api/results/round1', (req: Request, res: Response) => {
 app.post('/api/results/round2', (req: Request, res: Response) => {
   const result = req.body;
   result.id = `r2-${Date.now()}`;
-  db.round2Results.push(result);
 
   const p = db.participants.find((item) => item.id === result.participantId);
   if (p) {
+    if (!result.participantNumber) result.participantNumber = p.participantNumber;
+    if (!result.mobile) result.mobile = p.mobile || p.phone || p.customData?.phone || '';
     p.round2Status = result.status;
+    p.round2TopicId = result.topicId;
+    if (result.qualification) {
+      p.round2Qualified = result.qualification;
+      if (result.qualification === 'disqualified') p.status = 'eliminated';
+      else if (result.qualification === 'qualified' && p.status === 'eliminated') p.status = 'active';
+    }
   }
+
+  db.round2Results.push(result);
 
   // Update topic status
   if (!db.settings.round2.topicReuseAllowed) {
-    const top = db.topics.find((t) => t.id === result.topicId);
+    const top = db.topics.find((t) => t.id === result.topicId || t.topicId === result.topicId);
     if (top) {
       top.status = 'used';
       top.usedByParticipantId = result.participantId;
@@ -2068,17 +2480,119 @@ app.post('/api/results/round2', (req: Request, res: Response) => {
 app.post('/api/results/round3', (req: Request, res: Response) => {
   const result = req.body;
   result.id = `r3-${Date.now()}`;
-  db.round3Results.push(result);
 
   const p = db.participants.find((item) => item.id === result.participantId);
   if (p) {
+    if (!result.participantNumber) result.participantNumber = p.participantNumber;
+    if (!result.mobile) result.mobile = p.mobile || p.phone || p.customData?.phone || '';
     p.round3Status = result.status;
+    if (result.qualification) {
+      p.round3Qualified = result.qualification;
+      if (result.qualification === 'disqualified') p.status = 'eliminated';
+      else if (result.qualification === 'qualified' && p.status === 'eliminated') p.status = 'active';
+    }
   }
+
+  db.round3Results.push(result);
 
   persistDB();
   logAction('Round 3 Completed', `Participant ${result.participantName} completed Round 3 speech (${result.speechDurationSeconds}s)`, 'Round 3', result.participantId, result.participantName);
   broadcastSSE('result_added', { round: 3, result });
   res.json(result);
+});
+
+// QUALIFICATION API: Single participant qualification toggle/update
+app.post('/api/qualification', (req: Request, res: Response) => {
+  const { participantId, round, status, reason } = req.body;
+  const p = db.participants.find((item) => item.id === participantId);
+  if (!p) {
+    return res.status(404).json({ error: 'Participant not found' });
+  }
+
+  if (round === 1) {
+    p.round1Qualified = status;
+    const r = db.round1Results.find((res) => res.participantId === participantId);
+    if (r) {
+      r.qualification = status;
+      if (reason !== undefined) r.qualificationReason = reason;
+    }
+  } else if (round === 2) {
+    p.round2Qualified = status;
+    const r = db.round2Results.find((res) => res.participantId === participantId);
+    if (r) {
+      r.qualification = status;
+      if (reason !== undefined) r.qualificationReason = reason;
+    }
+  } else if (round === 3) {
+    p.round3Qualified = status;
+    const r = db.round3Results.find((res) => res.participantId === participantId);
+    if (r) {
+      r.qualification = status;
+      if (reason !== undefined) r.qualificationReason = reason;
+    }
+  }
+
+  if (reason) p.qualificationReason = reason;
+
+  if (status === 'disqualified') {
+    p.status = 'eliminated';
+  } else if (status === 'qualified' && p.status === 'eliminated') {
+    p.status = 'active';
+  }
+
+  p.updatedAt = new Date().toISOString();
+  persistDB();
+  logAction(
+    'Qualification Updated',
+    `Participant ${p.name} marked as ${status.toUpperCase()} in Round ${round}`,
+    `Round ${round}` as any,
+    p.id,
+    p.name
+  );
+  broadcastSSE('qualification_updated', { participantId, round, status, reason, participant: p });
+  res.json({ success: true, participant: p });
+});
+
+// BATCH QUALIFICATION API: Set multiple participants as qualified/disqualified
+app.post('/api/qualification/batch', (req: Request, res: Response) => {
+  const { participantIds, round, status } = req.body;
+  if (!Array.isArray(participantIds) || participantIds.length === 0) {
+    return res.status(400).json({ error: 'participantIds array is required' });
+  }
+
+  const updatedList: Participant[] = [];
+  participantIds.forEach((pid: string) => {
+    const p = db.participants.find((item) => item.id === pid);
+    if (p) {
+      if (round === 1) {
+        p.round1Qualified = status;
+        const r = db.round1Results.find((res) => res.participantId === pid);
+        if (r) r.qualification = status;
+      } else if (round === 2) {
+        p.round2Qualified = status;
+        const r = db.round2Results.find((res) => res.participantId === pid);
+        if (r) r.qualification = status;
+      } else if (round === 3) {
+        p.round3Qualified = status;
+        const r = db.round3Results.find((res) => res.participantId === pid);
+        if (r) r.qualification = status;
+      }
+
+      if (status === 'disqualified') p.status = 'eliminated';
+      else if (status === 'qualified' && p.status === 'eliminated') p.status = 'active';
+
+      p.updatedAt = new Date().toISOString();
+      updatedList.push(p);
+    }
+  });
+
+  persistDB();
+  logAction(
+    'Batch Qualification',
+    `Updated ${updatedList.length} contestants to ${status.toUpperCase()} in Round ${round}`
+  );
+  broadcastSSE('participants_batch_updated', { round, status, updatedList });
+  res.json({ success: true, count: updatedList.length, participants: updatedList });
 });
 
 // START SERVER WITH VITE INTEGRATION

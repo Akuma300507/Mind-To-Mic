@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Mic,
-  Brain,
   Maximize2,
   Minimize2,
   Volume2,
@@ -17,6 +15,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { MindToMicLogo } from '../common/MindToMicLogo';
 
 export const Navbar: React.FC = () => {
   const {
@@ -67,15 +66,12 @@ export const Navbar: React.FC = () => {
             onClick={() => setCurrentPage('dashboard')}
             className="flex items-center gap-2.5 text-left group transition-transform active:scale-98"
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-blue-500 p-0.5 shadow-lg shadow-purple-950/50 flex items-center justify-center">
-              <div className="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center relative overflow-hidden group-hover:bg-slate-900 transition-colors">
-                <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-purple-400 group-hover:text-purple-300 transition-colors" />
-                <Brain className="w-2.5 h-2.5 text-blue-400 absolute bottom-1.5 right-1.5" />
-              </div>
+            <div className="h-10 px-1.5 rounded-xl bg-slate-950 border border-purple-500/40 shadow-lg shadow-purple-950/50 flex items-center justify-center relative group-hover:border-purple-400 transition-colors">
+              <MindToMicLogo size={28} variant="emblem" showGlow={false} />
             </div>
             <div className="hidden sm:block">
               <div className="flex items-center gap-2">
-                <span className="font-extrabold tracking-tight text-base sm:text-lg text-white font-['Outfit']">
+                <span className="font-extrabold tracking-tight text-base sm:text-lg text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-purple-300 to-pink-400 font-['Outfit']">
                   {db?.settings.event.name || 'MIND TO MIC'}
                 </span>
                 <span className="px-1.5 py-0.5 text-[9px] uppercase font-bold tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded">

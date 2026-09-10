@@ -16,9 +16,15 @@ import {
   Plus,
   MapPin,
   Flame,
+  User,
+  Phone,
+  Shield,
+  Edit3,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { soundEngine } from '../lib/audio';
+import { MindToMicLogo } from '../components/common/MindToMicLogo';
+import { InspireLogo } from '../components/common/InspireLogo';
 import type { EventSettings, EventStation } from '../types';
 
 export const Settings: React.FC = () => {
@@ -28,6 +34,12 @@ export const Settings: React.FC = () => {
     resetAllData,
     uploadCustomBuzzer,
     resetCustomBuzzer,
+    uploadCustomPrepBuzzer,
+    resetCustomPrepBuzzer,
+    uploadCustomLogo,
+    resetCustomLogo,
+    uploadInspireLogo,
+    resetInspireLogo,
     startNewEvent,
   } = useApp();
 
@@ -38,9 +50,28 @@ export const Settings: React.FC = () => {
   const [customAudioUploading, setCustomAudioUploading] = useState(false);
   const [customAudioError, setCustomAudioError] = useState<string | null>(null);
 
+  // Preparation Buzzer Audio States
+  const [customPrepAudioUploading, setCustomPrepAudioUploading] = useState(false);
+  const [customPrepAudioError, setCustomPrepAudioError] = useState<string | null>(null);
+  const prepAudioFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Logo Customization States
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Inspire 2K26 Logo Customization States
+  const [inspireLogoUploading, setInspireLogoUploading] = useState(false);
+  const [inspireLogoError, setInspireLogoError] = useState<string | null>(null);
+  const inspireLogoInputRef = useRef<HTMLInputElement | null>(null);
+
   // New Station Inputs
   const [newStationName, setNewStationName] = useState('');
   const [newStationLocation, setNewStationLocation] = useState('');
+  const [newStationHandlerName, setNewStationHandlerName] = useState('');
+  const [newStationHandlerRole, setNewStationHandlerRole] = useState('Stage Lead');
+  const [newStationHandlerPhone, setNewStationHandlerPhone] = useState('');
+  const [editingStationId, setEditingStationId] = useState<string | null>(null);
 
   const audioFileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -98,12 +129,202 @@ export const Settings: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleTestPrepBuzzer = () => {
+    soundEngine.unlock();
+    soundEngine.playPrepOverBuzzer(
+      form.buzzer.prepSound || 'dual_alert',
+      form.buzzer.prepVolume ?? 85,
+      form.buzzer.prepCustomAudioUrl
+    );
+  };
+
+  const handleCustomPrepAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setCustomPrepAudioError('Audio file must be under 5MB');
+      return;
+    }
+
+    setCustomPrepAudioUploading(true);
+    setCustomPrepAudioError(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result as string;
+        await uploadCustomPrepBuzzer(base64Data, file.name);
+        setForm((prev) =>
+          prev
+            ? {
+                ...prev,
+                buzzer: {
+                  ...prev.buzzer,
+                  prepSound: 'custom',
+                  prepCustomAudioUrl: base64Data,
+                  prepCustomAudioName: file.name,
+                },
+              }
+            : prev
+        );
+        setCustomPrepAudioUploading(false);
+      } catch (err: any) {
+        setCustomPrepAudioError(err.message || 'Failed to upload custom prep audio');
+        setCustomPrepAudioUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setCustomPrepAudioError('Error reading audio file');
+      setCustomPrepAudioUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setLogoError('Please upload a valid image file (PNG, SVG, JPG, WebP)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setLogoError('Image file must be under 5MB');
+      return;
+    }
+
+    setLogoUploading(true);
+    setLogoError(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result as string;
+        await uploadCustomLogo(base64Data, file.name);
+        setForm((prev) =>
+          prev
+            ? {
+                ...prev,
+                event: {
+                  ...prev.event,
+                  customLogoUrl: base64Data,
+                  customLogoName: file.name,
+                },
+              }
+            : prev
+        );
+        setLogoUploading(false);
+      } catch (err: any) {
+        setLogoError(err.message || 'Failed to upload logo');
+        setLogoUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setLogoError('Error reading image file');
+      setLogoUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetLogo = async () => {
+    try {
+      await resetCustomLogo();
+      setForm((prev) =>
+        prev
+          ? {
+              ...prev,
+              event: {
+                ...prev.event,
+                customLogoUrl: undefined,
+                customLogoName: undefined,
+              },
+            }
+          : prev
+      );
+      if (logoInputRef.current) logoInputRef.current.value = '';
+    } catch (err: any) {
+      setLogoError(err.message || 'Failed to reset logo');
+    }
+  };
+
+  const handleInspireLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setInspireLogoError('Please upload a valid image file (PNG, SVG, JPG, WebP)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setInspireLogoError('Image file must be under 5MB');
+      return;
+    }
+
+    setInspireLogoUploading(true);
+    setInspireLogoError(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64Data = reader.result as string;
+        await uploadInspireLogo(base64Data, file.name);
+        setForm((prev) =>
+          prev
+            ? {
+                ...prev,
+                event: {
+                  ...prev.event,
+                  inspireLogoUrl: base64Data,
+                  inspireLogoName: file.name,
+                },
+              }
+            : prev
+        );
+        setInspireLogoUploading(false);
+      } catch (err: any) {
+        setInspireLogoError(err.message || 'Failed to upload Inspire logo');
+        setInspireLogoUploading(false);
+      }
+    };
+    reader.onerror = () => {
+      setInspireLogoError('Error reading image file');
+      setInspireLogoUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetInspireLogo = async () => {
+    try {
+      await resetInspireLogo();
+      setForm((prev) =>
+        prev
+          ? {
+              ...prev,
+              event: {
+                ...prev.event,
+                inspireLogoUrl: undefined,
+                inspireLogoName: undefined,
+              },
+            }
+          : prev
+      );
+      if (inspireLogoInputRef.current) inspireLogoInputRef.current.value = '';
+    } catch (err: any) {
+      setInspireLogoError(err.message || 'Failed to reset Inspire logo');
+    }
+  };
+
   const handleAddStation = () => {
     if (!newStationName.trim()) return;
     const newStation: EventStation = {
       id: `station-${Date.now()}`,
       name: newStationName.trim(),
       location: newStationLocation.trim() || 'Auditorium',
+      handlerName: newStationHandlerName.trim() || undefined,
+      handlerRole: newStationHandlerRole.trim() || undefined,
+      handlerPhone: newStationHandlerPhone.trim() || undefined,
+      handlerStatus: 'ready',
     };
     const currentStations = form.stations || [];
     setForm({
@@ -112,6 +333,16 @@ export const Settings: React.FC = () => {
     });
     setNewStationName('');
     setNewStationLocation('');
+    setNewStationHandlerName('');
+    setNewStationHandlerPhone('');
+  };
+
+  const handleUpdateStationField = (id: string, updates: Partial<EventStation>) => {
+    const currentStations = form.stations || [];
+    setForm({
+      ...form,
+      stations: currentStations.map((st) => (st.id === id ? { ...st, ...updates } : st)),
+    });
   };
 
   const handleDeleteStation = (id: string) => {
@@ -176,6 +407,138 @@ export const Settings: React.FC = () => {
                 className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-purple-500"
               />
             </div>
+          </div>
+
+          {/* Logo preview and management */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-slate-900 border border-slate-700/60 flex items-center justify-center shrink-0 shadow-inner">
+                  <MindToMicLogo size={52} variant="emblem" showGlow={false} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white flex flex-wrap items-center gap-2">
+                    <span>Official Mind to Mic Logo</span>
+                    {form.event.customLogoUrl ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-950 text-purple-300 border border-purple-800/60 font-medium">
+                        Custom: {form.event.customLogoName || 'Uploaded File'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800/60 font-medium">
+                        Original Asset (/logo.svg)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Used exclusively across headers, navigation, Round 2 spinning wheel center medallion, and presentation screens.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  disabled={logoUploading}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold shadow-lg shadow-purple-600/20 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{logoUploading ? 'Uploading...' : 'Change / Upload Logo'}</span>
+                </button>
+
+                {form.event.customLogoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleResetLogo}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer border border-slate-700/60"
+                    title="Reset to default official logo"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Original</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {logoError && (
+              <p className="text-xs text-rose-400 mt-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{logoError}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Inspire 2K26 Logo preview and management */}
+          <div className="pt-2 border-t border-slate-800/80">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-slate-950/60 border border-slate-800">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="p-2.5 rounded-xl bg-slate-900 border border-amber-900/40 flex items-center justify-center shrink-0 shadow-inner">
+                  <InspireLogo size={54} showGlow={false} />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-white flex flex-wrap items-center gap-2">
+                    <span>Inspire 2K26: The Arcade Archives Logo</span>
+                    {form.event.inspireLogoUrl ? (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-950 text-amber-300 border border-amber-800/60 font-medium">
+                        Custom: {form.event.inspireLogoName || 'Uploaded File'}
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-300 border border-slate-700/60 font-medium">
+                        Default Inspire Vector Asset
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Featured prominently in the top center of the Projector & Stage View for the championship audience.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <input
+                  ref={inspireLogoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleInspireLogoUpload}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => inspireLogoInputRef.current?.click()}
+                  disabled={inspireLogoUploading}
+                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold shadow-lg shadow-amber-600/20 transition-all disabled:opacity-50 cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{inspireLogoUploading ? 'Uploading...' : 'Upload Inspire Logo'}</span>
+                </button>
+
+                {form.event.inspireLogoUrl && (
+                  <button
+                    type="button"
+                    onClick={handleResetInspireLogo}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer border border-slate-700/60"
+                    title="Reset to default Inspire logo"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reset Default</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {inspireLogoError && (
+              <p className="text-xs text-rose-400 mt-2 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{inspireLogoError}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -559,6 +922,169 @@ export const Settings: React.FC = () => {
             )}
           </div>
 
+          {/* Section: 30-Second Preparation Timer Buzzer */}
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-slate-800/80 space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/60 pb-2.5">
+              <div>
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 font-['Outfit']">
+                  <Volume2 className="w-4 h-4 text-amber-400" />
+                  30-Second Preparation Timer Buzzer
+                </span>
+                <p className="text-[11px] text-slate-400">
+                  Sound played automatically when the 30s preparation countdown finishes and speech time begins.
+                </p>
+              </div>
+              {form.buzzer.prepCustomAudioUrl && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-950/70 text-amber-300 border border-amber-800">
+                  Custom Prep Sound Active ({form.buzzer.prepCustomAudioName || 'Uploaded'})
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Prep Buzzer Sound Signature</label>
+                <select
+                  value={form.buzzer.prepSound || 'dual_alert'}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      buzzer: { ...form.buzzer, prepSound: e.target.value as any },
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white focus:outline-none focus:border-amber-500"
+                >
+                  <option value="dual_alert">Energetic Dual-Pulse Alert (Default punchy buzz)</option>
+                  <option value="staccato">Triple Staccato Alert (Sharp rapid pulses)</option>
+                  <option value="chime">Resonant Harmonic Chime (Stage gong bell)</option>
+                  <option value="horn">Stadium Air Horn (Short blast)</option>
+                  <option value="klaxon">Electronic Warning Klaxon</option>
+                  {form.buzzer.prepCustomAudioUrl && (
+                    <option value="custom">Custom Uploaded Audio File</option>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-slate-300 font-semibold">Prep Volume Level</label>
+                  <span className="font-mono text-amber-300 font-bold">{form.buzzer.prepVolume ?? 85}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={form.buzzer.prepVolume ?? 85}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      buzzer: { ...form.buzzer, prepVolume: parseInt(e.target.value) || 0 },
+                    })
+                  }
+                  className="w-full accent-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center pt-3">
+                <button
+                  type="button"
+                  onClick={handleTestPrepBuzzer}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 font-bold transition-all"
+                >
+                  <Volume2 className="w-4 h-4" />
+                  <span>Test Prep Buzzer</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Custom Prep Buzzer Upload Area */}
+            <div className="p-3 rounded-lg bg-slate-900/60 border border-slate-800/80 space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                    <Upload className="w-3 h-3 text-amber-400" />
+                    Upload Custom Prep Buzzer Audio
+                  </span>
+                  <p className="text-[10px] text-slate-400">
+                    Upload an audio file (MP3, WAV, OGG, M4A up to 5MB) specifically for the 30s prep time buzzer.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    ref={prepAudioFileInputRef}
+                    type="file"
+                    accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac"
+                    className="hidden"
+                    onChange={handleCustomPrepAudioUpload}
+                  />
+
+                  <button
+                    type="button"
+                    disabled={customPrepAudioUploading}
+                    onClick={() => prepAudioFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/40 text-xs font-bold flex items-center gap-1.5 transition-all"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{customPrepAudioUploading ? 'Uploading...' : form.buzzer.prepCustomAudioUrl ? 'Replace Prep Audio' : 'Upload Audio'}</span>
+                  </button>
+
+                  {form.buzzer.prepCustomAudioUrl && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (confirm('Reset custom preparation buzzer back to default alert?')) {
+                          await resetCustomPrepBuzzer();
+                          setForm((prev) =>
+                            prev
+                              ? {
+                                  ...prev,
+                                  buzzer: {
+                                    ...prev.buzzer,
+                                    prepSound: 'dual_alert',
+                                    prepCustomAudioUrl: undefined,
+                                    prepCustomAudioName: undefined,
+                                  },
+                                }
+                              : prev
+                          );
+                        }
+                      }}
+                      className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-300 text-xs font-semibold"
+                      title="Remove custom prep buzzer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {customPrepAudioError && (
+                <p className="text-xs text-rose-400 font-semibold">{customPrepAudioError}</p>
+              )}
+
+              {form.buzzer.prepCustomAudioUrl && (
+                <div className="flex items-center gap-3 text-xs text-slate-300">
+                  <span className="text-amber-300 font-mono text-[11px]">
+                    ✓ Active prep audio: {form.buzzer.prepCustomAudioName || 'custom_prep_sound.mp3'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (form.buzzer.prepCustomAudioUrl) {
+                        soundEngine.playAudioFile(form.buzzer.prepCustomAudioUrl, form.buzzer.prepVolume ?? 85);
+                      }
+                    }}
+                    className="text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
+                  >
+                    <Play className="w-3 h-3" />
+                    <span>Preview Prep Audio</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 text-xs">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -624,53 +1150,213 @@ export const Settings: React.FC = () => {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {(form.stations || []).map((st) => (
-              <div
-                key={st.id}
-                className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs"
-              >
-                <div>
-                  <h4 className="font-bold text-white font-['Outfit'] text-sm">{st.name}</h4>
-                  <p className="text-slate-400 text-[11px]">Location / Room: {st.location}</p>
+            {(form.stations || []).map((st) => {
+              const isEditing = editingStationId === st.id;
+              return (
+                <div
+                  key={st.id}
+                  className="p-4 rounded-2xl bg-slate-950 border border-slate-800 text-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      {isEditing ? (
+                        <div className="space-y-2 mb-2">
+                          <input
+                            type="text"
+                            value={st.name}
+                            onChange={(e) => handleUpdateStationField(st.id, { name: e.target.value })}
+                            className="w-full px-2.5 py-1 rounded-lg bg-slate-900 border border-purple-800/40 text-white font-bold text-sm focus:outline-none"
+                            placeholder="Station Name"
+                          />
+                          <input
+                            type="text"
+                            value={st.location}
+                            onChange={(e) => handleUpdateStationField(st.id, { location: e.target.value })}
+                            className="w-full px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-300 text-xs focus:outline-none"
+                            placeholder="Location / Room"
+                          />
+                        </div>
+                      ) : (
+                        <div>
+                          <h4 className="font-bold text-white font-['Outfit'] text-sm">{st.name}</h4>
+                          <p className="text-slate-400 text-[11px]">Location / Room: {st.location}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingStationId(isEditing ? null : st.id)}
+                        className={`p-1.5 rounded-lg border transition-colors ${
+                          isEditing
+                            ? 'bg-purple-600 text-white border-purple-500'
+                            : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+                        }`}
+                        title={isEditing ? 'Close Edit' : 'Edit Station & Handler'}
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      {(form.stations || []).length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStation(st.id)}
+                          className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-900"
+                          title="Delete station"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Handler Information Block */}
+                  {isEditing ? (
+                    <div className="p-3 bg-slate-900/90 rounded-xl border border-purple-900/30 space-y-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 block">
+                        Station Handler Details
+                      </span>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={st.handlerName || ''}
+                          onChange={(e) => handleUpdateStationField(st.id, { handlerName: e.target.value || undefined })}
+                          placeholder="Handler Name"
+                          className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                        <input
+                          type="text"
+                          value={st.handlerRole || ''}
+                          onChange={(e) => handleUpdateStationField(st.id, { handlerRole: e.target.value || undefined })}
+                          placeholder="Role (e.g. Stage Lead)"
+                          className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          value={st.handlerPhone || ''}
+                          onChange={(e) => handleUpdateStationField(st.id, { handlerPhone: e.target.value || undefined })}
+                          placeholder="Phone / Mobile"
+                          className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-white text-xs font-mono"
+                        />
+                        <select
+                          value={st.handlerStatus || 'ready'}
+                          onChange={(e) => handleUpdateStationField(st.id, { handlerStatus: e.target.value as any })}
+                          className="px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 text-xs"
+                        >
+                          <option value="ready">Status: Ready</option>
+                          <option value="active">Status: Active</option>
+                          <option value="on_break">Status: On Break</option>
+                          <option value="busy">Status: Busy</option>
+                        </select>
+                      </div>
+                      <input
+                        type="text"
+                        value={st.handlerNotes || ''}
+                        onChange={(e) => handleUpdateStationField(st.id, { handlerNotes: e.target.value || undefined })}
+                        placeholder="Desk / Station notes (optional)"
+                        className="w-full px-2 py-1 rounded-lg bg-slate-950 border border-slate-700 text-slate-300 text-xs"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-900/50 border border-slate-800/80">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-purple-950/80 border border-purple-800/40 flex items-center justify-center text-purple-400">
+                          <User className="w-3 h-3" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-white">
+                              {st.handlerName || 'No handler assigned'}
+                            </span>
+                            {st.handlerRole && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-900/40 text-purple-300 border border-purple-700/40 font-bold">
+                                {st.handlerRole}
+                              </span>
+                            )}
+                          </div>
+                          {st.handlerPhone && (
+                            <p className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                              <Phone className="w-2.5 h-2.5 text-slate-500" />
+                              {st.handlerPhone}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditingStationId(st.id)}
+                        className="text-[10px] text-purple-400 hover:text-purple-300 underline font-semibold"
+                      >
+                        {st.handlerName ? 'Edit Handler' : '+ Assign'}
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {(form.stations || []).length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteStation(st.id)}
-                    className="p-1.5 text-slate-500 hover:text-rose-400 rounded-lg hover:bg-slate-900"
-                    title="Delete station"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Add Station Sub-form */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <input
-              type="text"
-              placeholder="Station Name (e.g. Stage Beta)"
-              value={newStationName}
-              onChange={(e) => setNewStationName(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
-            />
-            <input
-              type="text"
-              placeholder="Location (e.g. Room 204)"
-              value={newStationLocation}
-              onChange={(e) => setNewStationLocation(e.target.value)}
-              className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
-            />
-            <button
-              type="button"
-              onClick={handleAddStation}
-              className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl"
-            >
+          <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800/80 space-y-3 pt-3">
+            <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
               <Plus className="w-3.5 h-3.5" />
-              <span>Add Station</span>
-            </button>
+              Add New Event Station
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+              <input
+                type="text"
+                placeholder="Station Name (e.g. Stage Gamma)"
+                value={newStationName}
+                onChange={(e) => setNewStationName(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+              <input
+                type="text"
+                placeholder="Location (e.g. Room 301)"
+                value={newStationLocation}
+                onChange={(e) => setNewStationLocation(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+              <input
+                type="text"
+                placeholder="Handler Name (e.g. Jordan)"
+                value={newStationHandlerName}
+                onChange={(e) => setNewStationHandlerName(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+              <input
+                type="text"
+                placeholder="Handler Phone (e.g. 555-0199)"
+                value={newStationHandlerPhone}
+                onChange={(e) => setNewStationHandlerPhone(e.target.value)}
+                className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-white text-xs focus:outline-none focus:border-purple-500"
+              />
+            </div>
+            <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-400">Default Handler Role:</span>
+                <select
+                  value={newStationHandlerRole}
+                  onChange={(e) => setNewStationHandlerRole(e.target.value)}
+                  className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-200 text-xs"
+                >
+                  <option value="Stage Lead">Stage Lead</option>
+                  <option value="Timekeeper">Timekeeper</option>
+                  <option value="Volunteer / Anchor">Volunteer / Anchor</option>
+                  <option value="Lead Judge">Lead Judge</option>
+                  <option value="Evaluator">Evaluator</option>
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddStation}
+                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-md transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Station</span>
+              </button>
+            </div>
           </div>
         </div>
 
